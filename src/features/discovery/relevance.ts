@@ -1,0 +1,146 @@
+import type { DiscoveryJob } from "@/features/discovery/types";
+
+export type DiscoveryCandidateProfile = {
+  location: string | null;
+  targetRoleFamilies: readonly string[];
+};
+
+const TITLE_SIGNALS: ReadonlyArray<readonly [RegExp, number]> = [
+  [/\bimplementation\b/i, 6],
+  [/\bsolutions? (?:consultant|engineer|specialist|architect)\b/i, 6],
+  [/\btechnical customer success\b/i, 7],
+  [/\bcustomer success\b/i, 4],
+  [/\bproduct operations?\b/i, 6],
+  [/\bproduct analyst\b/i, 6],
+  [/\bbusiness analyst\b/i, 5],
+  [/\boperations? analyst\b/i, 5],
+  [/\bautomation\b/i, 5],
+  [/\benablement\b/i, 5],
+  [/\bonboarding\b/i, 4],
+  [/\bintegrations?\b/i, 4],
+  [/\btechnical account\b/i, 4],
+  [/\bassociate product manager\b/i, 7],
+  [/\binnovation\b/i, 4],
+  [/\bdigital transformation\b/i, 5],
+  [/\b(?:product|support|operations?) specialist\b/i, 4],
+  [/\b(?:product|implementation|technology) consultant\b/i, 4],
+  [/\banalyst\b/i, 2],
+  [/\bassociate\b/i, 2],
+  [/\bcoordinator\b/i, 2],
+];
+
+const SENIOR_TITLE = /\b(?:senior|sr\.?|staff|principal|director|head|vice president|vp)\b/i;
+const ENTRY_TITLE = /\b(?:junior|jr\.?|entry|associate|coordinator|specialist|analyst)\b/i;
+const GENERIC_PRODUCT_MANAGER_TITLE = /\bproduct manager\b/i;
+const CLEARLY_UNRELATED_TITLE =
+  /\b(?:account executive|sales development|attorney|counsel|recruiter|physician|nurse|therapist|clinical trial|tax|payroll)\b/i;
+const ENGINEERING_TITLE =
+  /\b(?:software|frontend|front-end|backend|back-end|mobile|machine learning|data|security|site reliability|devops) engineer\b/i;
+const CLEARLY_FOREIGN_LOCATION =
+  /\b(?:australia|canada|mexico|united kingdom|england|ireland|france|germany|netherlands|spain|portugal|poland|sweden|india|japan|singapore|brazil|argentina|colombia|israel)\b/i;
+const UNITED_STATES_LOCATION =
+  /\b(?:united states|u\.?s\.?a?\.?|new york|san francisco|pittsburgh|pennsylvania|california|texas|massachusetts|washington,? dc|remote\s*-?\s*us)\b/i;
+
+function normalizedTokens(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length >= 4);
+}
+
+function targetTokenScore(title: string, roleFamilies: readonly string[]) {
+  const titleTokens = new Set(normalizedTokens(title));
+  const targetTokens = new Set(roleFamilies.flatMap(normalizedTokens));
+  let score = 0;
+  for (const token of targetTokens) {
+    if (titleTokens.has(token)) score += 0.75;
+  }
+  return Math.min(4, score);
+}
+
+function locationScore(job: DiscoveryJob, profile: DiscoveryCandidateProfile) {
+  const location = job.location?.toLowerCase() ?? "";
+  const home = profile.location?.toLowerCase() ?? "";
+  if (job.workArrangement === "remote") return 2;
+  if (location.includes("pittsburgh") || location.includes("pennsylvania")) return 2;
+  if (home && location && home.split(",")[0] && location.includes(home.split(",")[0])) return 2;
+  if (job.workArrangement === "hybrid" && location) return -2;
+  if (job.workArrangement === "on_site" && location) return -3;
+  return 0;
+}
+
+function isClearlyOutsideUnitedStates(job: DiscoveryJob) {
+  const location = job.location ?? "";
+  return CLEARLY_FOREIGN_LOCATION.test(location) && !UNITED_STATES_LOCATION.test(location);
+}
+
+/**
+ * Catalog admission is intentionally independent from any one candidate. The
+ * shared discovery refresh should retain viable US roles for every visitor;
+ * each visitor's deterministic fit score decides how those roles are ranked.
+ */
+export function isDiscoveryImportCandidate(job: DiscoveryJob) {
+  return (
+    job.title.trim().length > 0 &&
+    job.company.trim().length > 0 &&
+    Boolean(job.applyUrl.trim() || job.jobUrl.trim()) &&
+    !isClearlyOutsideUnitedStates(job)
+  );
+}
+
+/**
+ * A profile-neutral quality signal used only to spend the bounded import
+ * budget. It favors complete, actionable cards without favoring a profession.
+ */
+export function scoreDiscoveryImportPriority(job: DiscoveryJob) {
+  let score = 0;
+  if (job.workArrangement === "remote") score += 2;
+  else if (job.workArrangement === "hybrid") score += 1;
+
+  if (
+    job.salary &&
+    (job.salary.minimumMajorUnits !== null ||
+      job.salary.maximumMajorUnits !== null)
+  ) {
+    score += 2;
+  }
+  if (job.employmentType !== "unknown") score += 0.5;
+  if (job.descriptionText.trim().length >= 400) score += 0.5;
+
+  return score;
+}
+
+export function scoreDiscoveryRelevance(
+  job: DiscoveryJob,
+  profile: DiscoveryCandidateProfile,
+) {
+  const title = job.title.trim();
+  let score = targetTokenScore(title, profile.targetRoleFamilies);
+
+  for (const [pattern, weight] of TITLE_SIGNALS) {
+    if (pattern.test(title)) score += weight;
+  }
+  if (ENTRY_TITLE.test(title)) score += 2;
+  if (SENIOR_TITLE.test(title)) score -= 5;
+  // The candidate is targeting associate product roles, not unqualified generic
+  // PM openings. Those can still surface when the title carries an entry signal.
+  if (GENERIC_PRODUCT_MANAGER_TITLE.test(title) && !ENTRY_TITLE.test(title)) score -= 5;
+  if (CLEARLY_UNRELATED_TITLE.test(title)) score -= 8;
+  if (
+    ENGINEERING_TITLE.test(title) &&
+    !/\b(?:solutions?|implementation|support|customer)\b/i.test(title)
+  ) {
+    score -= 6;
+  }
+  score += locationScore(job, profile);
+
+  return Math.round(score * 100) / 100;
+}
+
+export function isDiscoveryCandidateRelevant(
+  job: DiscoveryJob,
+  profile: DiscoveryCandidateProfile,
+) {
+  return !isClearlyOutsideUnitedStates(job) && scoreDiscoveryRelevance(job, profile) >= 3;
+}
