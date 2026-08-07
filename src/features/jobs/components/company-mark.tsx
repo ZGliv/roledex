@@ -94,7 +94,7 @@ export function CompanyMark({
 }) {
   const icon = COMPANY_ICONS[company.trim().toLowerCase()];
   const cleanCompany = company.trim();
-  const fallback = compact || cleanCompany.length > 8
+  const fallback = compact || cleanCompany.length > 6
     ? cleanCompany
         .split(/\s+/)
         .filter(Boolean)
@@ -123,7 +123,7 @@ export function CompanyMark({
         compact
           ? "text-[13px]"
           : cleanCompany.length > 6
-            ? "text-[1.45rem]"
+            ? "text-[1.75rem]"
             : cleanCompany.length > 4
               ? "text-[1.65rem]"
               : "text-[1.5rem]",

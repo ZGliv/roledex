@@ -1129,14 +1129,14 @@ export function JobDeck({
           <div
             ref={saveStampRef}
             aria-hidden="true"
-            className="pointer-events-none absolute left-5 top-6 z-30 -rotate-6 rounded-xl border border-[#6c64e5]/25 bg-white/82 px-3.5 py-2 text-xs font-semibold text-[#524bc7] opacity-0 shadow-[0_10px_30px_rgba(47,43,120,.12)] backdrop-blur-xl"
+            className="deck-stamp deck-stamp-save pointer-events-none absolute left-5 top-7 z-30 -rotate-8 opacity-0"
           >
             Save
           </div>
           <div
             ref={passStampRef}
             aria-hidden="true"
-            className="pointer-events-none absolute right-5 top-6 z-30 rotate-6 rounded-xl border border-[#d66272]/25 bg-white/82 px-3.5 py-2 text-xs font-semibold text-[#ba4052] opacity-0 shadow-[0_10px_30px_rgba(125,44,57,.1)] backdrop-blur-xl"
+            className="deck-stamp deck-stamp-pass pointer-events-none absolute right-5 top-7 z-30 rotate-8 opacity-0"
           >
             Pass
           </div>

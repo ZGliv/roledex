@@ -3,6 +3,7 @@ import { ArrowUpRight, Laptop2, MapPin, Sparkles } from "lucide-react";
 
 import type { JobCardViewModel } from "@/features/jobs/components/job-card";
 import { jobCardTemplateForCompany } from "@/features/jobs/components/job-card-templates";
+import { humanizeEvidence } from "@/features/jobs/humanize-evidence";
 import { cn } from "@/lib/utils";
 
 import { CompanyMark } from "./company-mark";
@@ -19,12 +20,12 @@ function bestCardInsight(job: JobCardViewModel) {
       !/fresh|recent|explor|variety|salary|compensation|pay|range/i.test(reason),
   );
 
-  return (
+  return humanizeEvidence(
     job.decisionBrief?.edge ??
-    personalized ??
-    job.strongestMatches[0] ??
-    job.reasonsToApply[0] ??
-    "Open the role brief for the strongest evidence and the biggest risk."
+      personalized ??
+      job.strongestMatches[0] ??
+      job.reasonsToApply[0] ??
+      "Open the full listing for the strongest evidence and the biggest risk.",
   );
 }
 
@@ -150,7 +151,7 @@ export const JobSwipeCard = memo(function JobSwipeCard({
           </p>
         </div>
 
-        <h2 className="mt-2.5 line-clamp-2 text-[clamp(1.7rem,7.1vw,2rem)] font-semibold leading-[1.02] tracking-[-0.045em] text-[#f6f8fc]">
+        <h2 className="mt-2.5 line-clamp-2 font-display text-[clamp(1.7rem,7.1vw,2rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-[#f6f8fc]">
           {job.title}
         </h2>
 
@@ -162,7 +163,7 @@ export const JobSwipeCard = memo(function JobSwipeCard({
               {salaryQualifier(job)}
             </span>
           </p>
-          <p className="mt-1.5 whitespace-nowrap text-[clamp(1.55rem,6.8vw,1.9rem)] font-semibold leading-none tracking-[-0.04em] text-[#f6f8fc] tabular-nums">
+          <p className="mt-1.5 whitespace-nowrap font-display text-[clamp(1.55rem,6.8vw,1.9rem)] font-semibold leading-none tracking-[-0.03em] text-[#f6f8fc] tabular-nums">
             {compactSalary(job.salaryDisplay)}
           </p>
         </div>
