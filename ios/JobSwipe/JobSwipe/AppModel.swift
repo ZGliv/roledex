@@ -38,7 +38,7 @@ final class AppModel: ObservableObject {
 
     init() {
         let configured = Bundle.main.object(forInfoDictionaryKey: "JOBSWIPE_API_BASE_URL") as? String
-        let url = URL(string: configured ?? "https://roledex.vercel.app/")!
+        let url = URL(string: configured ?? "https://getroledex.vercel.app/")!
         publicBaseURL = url
         client = APIClient(baseURL: url)
         publicHost = url.host

@@ -151,7 +151,7 @@ type ApiErrorBody = { error?: { code?: string; message?: string } };
 function apiBase() {
   const configured = import.meta.env.VITE_JOBSWIPE_API_BASE_URL;
   const fallback = Capacitor.isNativePlatform()
-    ? "https://roledex.vercel.app"
+    ? "https://getroledex.vercel.app"
     : "http://localhost:3100";
   const url = new URL(configured || fallback);
   const localHttp =
