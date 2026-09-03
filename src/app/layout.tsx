@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   AppDock,
@@ -10,7 +10,7 @@ import { EmergencyDecisionSync } from "@/features/jobs/components/emergency-deci
 import { productionDatabaseReleaseBlocked } from "@/features/production/database-release";
 import "./globals.css";
 
-const APP_CHROME_COLOR = "#060913";
+const APP_CHROME_COLOR = "#0f151d";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,11 +19,6 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
   subsets: ["latin"],
 });
 
@@ -61,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} h-full`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full`}
       style={{ backgroundColor: APP_CHROME_COLOR }}
     >
       <body

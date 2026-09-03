@@ -153,8 +153,8 @@ function MobileRoleCard({
     gesture.current.active = false;
     const surface = surfaceRef.current;
     if (!surface) return;
-    surface.style.transition = "transform 420ms cubic-bezier(.22,1,.36,1)";
-    surface.style.transform = "translate3d(0,0,0) rotate(0)";
+    surface.style.transition = "transform 240ms cubic-bezier(.22,.78,.24,1)";
+    surface.style.transform = "translate3d(0,0,0) rotate(0) scale(1)";
     surface.style.removeProperty("opacity");
     surface.style.setProperty("--swipe-pass-opacity", "0");
     surface.style.setProperty("--swipe-save-opacity", "0");
@@ -167,12 +167,12 @@ function MobileRoleCard({
     const surface = surfaceRef.current;
     if (!state.active || !surface) return;
     const deltaX = state.clientX - state.startX;
-    const dragIntent = Math.max(0, Math.min(1, (Math.abs(deltaX) - 12) / 30));
-    const resistedX = Math.sign(deltaX) * Math.max(0, Math.abs(deltaX) - 12) * dragIntent;
-    const rotateZ = Math.max(-8, Math.min(8, resistedX / 22));
-    surface.style.setProperty("--swipe-pass-opacity", deltaX < 0 ? String(Math.min(1, Math.abs(resistedX) / 90)) : "0");
-    surface.style.setProperty("--swipe-save-opacity", deltaX > 0 ? String(Math.min(1, Math.abs(resistedX) / 90)) : "0");
-    surface.style.transform = `translate3d(${resistedX}px,${-Math.abs(resistedX) * 0.015}px,0) rotate(${rotateZ}deg)`;
+    const moveX = deltaX * 0.96;
+    const progress = Math.min(1, Math.abs(moveX) / Math.max(surface.offsetWidth, 1));
+    const rotateZ = Math.max(-5, Math.min(5, moveX / 58));
+    surface.style.setProperty("--swipe-pass-opacity", deltaX < 0 ? String(Math.min(1, Math.abs(moveX) / 90)) : "0");
+    surface.style.setProperty("--swipe-save-opacity", deltaX > 0 ? String(Math.min(1, Math.abs(moveX) / 90)) : "0");
+    surface.style.transform = `translate3d(${moveX.toFixed(2)}px,${(-progress * 2).toFixed(2)}px,0) rotate(${rotateZ.toFixed(2)}deg) scale(${(1 - progress * 0.004).toFixed(4)})`;
   }, []);
 
   function pointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -196,14 +196,16 @@ function MobileRoleCard({
   function pointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     const state = gesture.current;
     if (!state.active || state.pointerId !== event.pointerId) return;
-    const deltaX = event.clientX - state.startX;
+    const points = event.nativeEvent.getCoalescedEvents?.();
+    const latest = points?.at(-1) ?? event.nativeEvent;
+    const deltaX = latest.clientX - state.startX;
     state.maxDistance = Math.max(state.maxDistance, Math.abs(deltaX));
     const elapsed = Math.max(1, event.timeStamp - state.lastTime);
-    const instantaneousVelocity = (event.clientX - state.lastClientX) / elapsed;
+    const instantaneousVelocity = (latest.clientX - state.lastClientX) / elapsed;
     state.velocityX = state.velocityX * 0.72 + instantaneousVelocity * 0.28;
-    state.lastClientX = event.clientX;
+    state.lastClientX = latest.clientX;
     state.lastTime = event.timeStamp;
-    state.clientX = event.clientX;
+    state.clientX = latest.clientX;
     if (frameRef.current === null) frameRef.current = requestAnimationFrame(paintGesture);
   }
 
@@ -231,9 +233,9 @@ function MobileRoleCard({
     if (!surface || decisionPending.current) return;
     decisionPending.current = true;
     const direction = decision === "saved" ? 1 : -1;
-    surface.style.transition = "transform 260ms cubic-bezier(.2,.82,.25,1), opacity 220ms ease";
-    surface.style.transform = `translate3d(${direction * (window.innerWidth + 120)}px,-16px,0) rotate(${direction * 14}deg)`;
-    surface.style.opacity = "0";
+    surface.style.transition = "transform 210ms cubic-bezier(.22,.72,.2,1), opacity 210ms ease";
+    surface.style.transform = `translate3d(${direction * (window.innerWidth + 120)}px,-8px,0) rotate(${direction * 7}deg)`;
+    surface.style.opacity = ".72";
     void Haptics.impact({ style: ImpactStyle.Medium }).catch(() => undefined);
     window.setTimeout(() => onDecision(decision), 250);
   }
@@ -305,8 +307,6 @@ function FeedDetail({ card, onClose }: { card: FeedCard; onClose: () => void }) 
         <div className="mobile-detail-grid">
           <article><span>Location</span><strong>{card.location}</strong></article>
           <article><span>Work setup</span><strong>{workArrangement(card)}</strong></article>
-          <article className="mobile-detail-wide"><span>Why it fits</span><strong>{card.fit.whyItFits}</strong></article>
-          <article className="mobile-detail-wide mobile-detail-risk"><span>What to verify</span><strong>{card.fit.biggestRisk}</strong></article>
         </div>
         <div className="mobile-sheet-actions">
           <button type="button" onClick={() => void share()} disabled={!card.source.url}>Share</button>
@@ -416,7 +416,7 @@ function SavedScreen({
             </article>
           );
         })}
-        {visibleJobs.length === 0 ? <div className="mobile-empty"><Heart /><h2>{jobs.length === 0 ? "Your shortlist is empty" : "Nothing matches these filters"}</h2><p>{jobs.length === 0 ? "Swipe right when a role is worth returning to." : "Try a different search or status."}</p>{jobs.length === 0 ? <button className="mobile-empty-action" type="button" onClick={() => void onReload()}><RotateCcw /> Refresh</button> : null}</div> : null}
+        {visibleJobs.length === 0 ? <div className="mobile-empty"><Heart /><h2>{jobs.length === 0 ? "No saved jobs" : "No matches"}</h2>{jobs.length === 0 ? <button className="mobile-empty-action" type="button" onClick={() => void onReload()}><RotateCcw /> Refresh</button> : null}</div> : null}
       </div>
       {actionError ? <p className="mobile-saved-error" role="status">{actionError}</p> : null}
     </section>
@@ -436,7 +436,6 @@ export function MobileApp() {
   const [secondaryLoading, setSecondaryLoading] = useState(false);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [error, setError] = useState<string | null>(null);
-  const [usingCachedFeed, setUsingCachedFeed] = useState(Boolean(cached));
   const [usingDemoFeed, setUsingDemoFeed] = useState(
     Boolean(cached?.cards[0]?.id.startsWith("demo-role-")),
   );
@@ -478,7 +477,6 @@ export function MobileApp() {
         return next;
       });
       setNextCursor(response.meta.nextCursor);
-      setUsingCachedFeed(false);
       setUsingDemoFeed(false);
       setError(null);
     } catch (reason) {
@@ -657,7 +655,7 @@ export function MobileApp() {
       {offline ? <div className="mobile-offline"><WifiOff /> Offline · swipes will sync</div> : null}
       {screen === "feed" ? (
         <section className="mobile-feed-screen">
-          <header className="mobile-brand"><span className="mobile-brand-mark"><JobSwipeGlyph /></span><span><strong>RoleDex</strong><small>For You</small></span><em>{usingDemoFeed ? "demo deck" : usingCachedFeed ? "saved on phone" : active?.tier.replaceAll("_", " ")}</em></header>
+          <header className="mobile-brand"><span className="mobile-brand-mark"><JobSwipeGlyph /></span><span><strong>RoleDex</strong></span></header>
           <div className="mobile-deck-stage">
             {cards[1] ? <div className="mobile-next-card"><MobileJobCard card={cards[1]} preview /></div> : null}
             {active ? <MobileRoleCard key={active.exposure.id} card={active} onDecision={decide} onOpen={() => setDetail(active)} /> : loading ? <CenterSpinner label="Building your feed" /> : error ? (

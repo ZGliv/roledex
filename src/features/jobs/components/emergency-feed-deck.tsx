@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
-  MoveHorizontal,
   RotateCcw,
   Search,
   WifiOff,
@@ -45,16 +44,11 @@ const EmergencyJobDetails = dynamic(
   {
     loading: () => (
       <div
-        className="fixed inset-0 z-50 grid place-items-center bg-[#02040a]/80 backdrop-blur-xl"
+        className="fixed inset-0 z-50 grid place-items-center bg-[#0f151d]/94"
         role="status"
-        aria-live="polite"
+        aria-label="Loading job"
       >
-        <div className="text-center">
-          <span className="page-loading-spinner mx-auto" aria-hidden="true" />
-          <p className="mt-4 text-sm font-medium text-white/70">
-            Opening job brief…
-          </p>
-        </div>
+        <span className="page-loading-spinner" aria-hidden="true" />
       </div>
     ),
     ssr: false,
@@ -213,13 +207,10 @@ function EmergencySavedList({
   }, [jobs, query]);
 
   return (
-    <div className="mx-auto mt-6 w-full max-w-2xl">
-      <header className="flex items-end justify-between gap-4 px-1">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-white/45">On this device</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-[-0.05em]">Saved jobs</h1>
-        </div>
-        <span className="text-xs font-medium text-white/45">{jobs.length} saved</span>
+    <div className="mx-auto mt-2 w-full max-w-2xl">
+      <header className="flex min-h-12 items-center justify-between gap-4 px-1">
+        <h1 className="text-xl font-semibold tracking-[-0.03em]">Saved</h1>
+        <span className="text-xs font-semibold tabular-nums text-[#8591a1]">{jobs.length}</span>
       </header>
 
       {announcement.startsWith("Couldn’t") ? (
@@ -234,51 +225,46 @@ function EmergencySavedList({
       {jobs.length > 0 ? (
         <label className="relative mt-5 block">
           <span className="sr-only">Search saved jobs on this device</span>
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-white/38" aria-hidden="true" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[#7f8a99]" aria-hidden="true" />
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search saved jobs"
-            className="h-12 w-full rounded-2xl border border-white/12 bg-white/[0.065] pl-11 pr-4 text-base text-white outline-none placeholder:text-white/32 focus:border-[#aaa3ff]/50 focus:ring-3 focus:ring-[#8176ff]/18"
+            className="h-12 w-full rounded-xl border border-[#303b49] bg-[#151d27] pl-11 pr-4 text-base text-white outline-none placeholder:text-[#687484] focus:border-[#6f9bea] focus:ring-2 focus:ring-[#4f7fd8]/20"
           />
         </label>
       ) : null}
 
       {visibleJobs.length === 0 ? (
-        <section className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.045] px-6 py-14 text-center">
-          <BriefcaseBusiness className="mx-auto size-6 text-[#aaa4ff]" aria-hidden="true" />
+        <section className="mt-6 rounded-2xl border border-[#2b3542] bg-[#151d27] px-6 py-14 text-center">
+          <BriefcaseBusiness className="mx-auto size-6 text-[#6f9bea]" aria-hidden="true" />
           <h2 className="mt-4 text-xl font-semibold">
-            {jobs.length === 0 ? "No on-device saves yet" : "No saved jobs match"}
+            {jobs.length === 0 ? "No saved jobs" : "No matches"}
           </h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-white/48">
-            {jobs.length === 0
-              ? "Jobs saved while workspace sync is paused will appear here."
-              : "Try a company, role, or location."}
-          </p>
         </section>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0b1120]/72 shadow-[0_30px_90px_rgba(0,0,0,.35)] backdrop-blur-2xl">
+        <div className="mt-4 overflow-hidden rounded-2xl border border-[#2b3542] bg-[#151d27]">
           {visibleJobs.map((job) => {
             const visual = companyVisual(job.company);
             return (
-              <article key={job.id} className="border-b border-white/[0.08] p-4 last:border-b-0 sm:p-5">
+              <article key={job.id} className="border-b border-[#2b3542] p-4 last:border-b-0 sm:p-5">
                 <div className="flex items-start gap-3.5">
-                  <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[1rem] border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,.2)]" style={{ backgroundColor: visual.background, color: visual.foreground }}>
+                  <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-black/10" style={{ backgroundColor: visual.background, color: visual.foreground }}>
                     <CompanyMark company={job.company} compact className="max-h-6 max-w-8" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.11em] text-white/42">{job.company}</p>
+                    <p className="truncate text-sm font-semibold text-[#b8c1cc]">{job.company}</p>
                     <h2 className="mt-1 text-[16px] font-semibold leading-5 tracking-[-0.025em] text-white">{job.title}</h2>
-                    <p className="mt-2 text-[13px] font-semibold text-white/82">{job.salaryDisplay}</p>
-                    <p className="mt-1 truncate text-[11px] text-white/46">{job.location} · {job.workArrangement}</p>
+                    <p className="mt-2 text-[13px] font-semibold text-[#edf1f6]">{job.salaryDisplay}</p>
+                    <p className="mt-1 truncate text-xs text-[#8d98a8]">{job.location} · {job.workArrangement}</p>
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
-                  <a href={job.sourceUrl} target="_blank" rel="noreferrer noopener" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 text-xs font-semibold text-[#111827] outline-none focus-visible:ring-2 focus-visible:ring-white/70">
-                    Open official listing <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                  <a href={job.sourceUrl} target="_blank" rel="noreferrer noopener" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#4f7fd8] px-4 text-xs font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[#8caef0]">
+                    Open <ArrowUpRight className="size-3.5" aria-hidden="true" />
                   </a>
-                  <button type="button" onClick={() => onRemove(job)} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/12 px-3.5 text-xs font-semibold text-white/58 outline-none hover:bg-white/[0.07] hover:text-white focus-visible:ring-2 focus-visible:ring-white/40" aria-label={`Remove ${job.title} from saved jobs`}>
+                  <button type="button" onClick={() => onRemove(job)} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#303b49] px-3.5 text-xs font-semibold text-[#aeb8c5] outline-none hover:bg-[#1c2632] hover:text-white focus-visible:ring-2 focus-visible:ring-[#6f9bea]" aria-label={`Remove ${job.title} from saved jobs`}>
                     Remove
                   </button>
                 </div>
@@ -287,7 +273,6 @@ function EmergencySavedList({
           })}
         </div>
       )}
-      <p className="mt-4 text-center text-[10px] leading-4 text-white/38">Saved on this device and queued for workspace sync.</p>
     </div>
   );
 }
@@ -338,7 +323,6 @@ export function EmergencyFeedDeck({
   const pointer = useRef({
     active: false,
     bounds: null as DOMRect | null,
-    glare: null as HTMLElement | null,
     id: -1,
     lastAt: 0,
     lastX: 0,
@@ -604,13 +588,12 @@ export function EmergencyFeedDeck({
     if (!card) return;
     card.style.transition = prefersReducedMotion()
       ? "none"
-      : "transform 340ms cubic-bezier(.2,.85,.25,1)";
-    card.style.transform = "translate3d(0,0,0) rotateX(0deg) rotateY(0deg) rotateZ(0deg)";
+      : "transform 240ms cubic-bezier(.22,.78,.24,1)";
+    card.style.transform = "translate3d(0,0,0) rotateZ(0deg) scale(1)";
     card.dataset.interacting = "false";
-    card.querySelector<HTMLElement>(".job-card-interactive-glare")?.style.removeProperty("opacity");
     window.setTimeout(() => {
       if (activeRef.current === card) card.style.removeProperty("transition");
-    }, 360);
+    }, 260);
     pointer.current.x = 0;
     pointer.current.vx = 0;
     pointer.current.maxDistance = 0;
@@ -655,7 +638,7 @@ export function EmergencyFeedDeck({
       activeAnimationRef.current = null;
 
       const direction = decision === "saved" ? 1 : -1;
-      const duration = 230;
+      const duration = 210;
       const animation =
         card && !prefersReducedMotion()
           ? safelyAnimate(
@@ -663,13 +646,13 @@ export function EmergencyFeedDeck({
           [
             { transform: getComputedStyle(card).transform, opacity: 1 },
             {
-              transform: `translate3d(${direction * (window.innerWidth + 420)}px, 18px, 0) rotateZ(${direction * 14}deg)`,
-              opacity: 0.25,
+              transform: `translate3d(${direction * (window.innerWidth + 360)}px, 8px, 0) rotateZ(${direction * 7}deg)`,
+              opacity: 0.72,
             },
           ],
               {
                 duration,
-                easing: "cubic-bezier(.24,.76,.26,1)",
+                easing: "cubic-bezier(.22,.72,.2,1)",
                 fill: "forwards",
               },
             )
@@ -693,7 +676,6 @@ export function EmergencyFeedDeck({
           pointer.current = {
             active: false,
             bounds: null,
-            glare: null,
             id: -1,
             lastX: 0,
             lastAt: 0,
@@ -740,9 +722,6 @@ export function EmergencyFeedDeck({
     pointer.current = {
       active: true,
       bounds: event.currentTarget.getBoundingClientRect(),
-      glare: event.currentTarget.querySelector<HTMLElement>(
-        ".job-card-interactive-glare",
-      ),
       id: event.pointerId,
       lastAt: performance.now(),
       lastX: event.clientX,
@@ -760,30 +739,30 @@ export function EmergencyFeedDeck({
     if (!pointer.current.active || pointer.current.id !== event.pointerId) return;
     const card = activeRef.current;
     if (!card) return;
+    const points = event.nativeEvent.getCoalescedEvents?.();
+    const latest = points?.at(-1) ?? event.nativeEvent;
+    const clientX = latest.clientX;
+    const clientY = latest.clientY;
     const now = performance.now();
-    const dx = event.clientX - pointer.current.startX;
-    const dy = event.clientY - pointer.current.startY;
+    const dx = clientX - pointer.current.startX;
+    const dy = clientY - pointer.current.startY;
     const elapsed = Math.max(1, now - pointer.current.lastAt);
-    pointer.current.vx = (event.clientX - pointer.current.lastX) / elapsed;
-    pointer.current.lastX = event.clientX;
+    pointer.current.vx = (clientX - pointer.current.lastX) / elapsed;
+    pointer.current.lastX = clientX;
     pointer.current.lastAt = now;
     pointer.current.x = dx;
     pointer.current.maxDistance = Math.max(pointer.current.maxDistance, Math.hypot(dx, dy));
-    const bounds = pointer.current.bounds;
-    if (!bounds) return;
-    const px = (event.clientX - bounds.left) / Math.max(1, bounds.width) - 0.5;
-    const py = (event.clientY - bounds.top) / Math.max(1, bounds.height) - 0.5;
-    const moveX = Math.abs(dx) < 14 ? 0 : dx - Math.sign(dx) * 14;
-    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-    frameRef.current = requestAnimationFrame(() => {
-      frameRef.current = null;
-      card.style.transform = `translate3d(${moveX}px,0,0) rotateX(${(-py * 9).toFixed(2)}deg) rotateY(${(px * 12).toFixed(2)}deg) rotateZ(${(moveX / Math.max(bounds.width, 1) * 8).toFixed(2)}deg)`;
-      const glare = pointer.current.glare;
-      if (glare) {
-        glare.style.transform = `translate3d(${(px * 28).toFixed(1)}px, ${(py * 38).toFixed(1)}px, 1px) scale(1.08)`;
-        glare.style.opacity = String(Math.min(0.34, 0.1 + Math.hypot(px, py) * 0.2));
-      }
-    });
+    if (frameRef.current === null) {
+      frameRef.current = requestAnimationFrame(() => {
+        frameRef.current = null;
+        const bounds = pointer.current.bounds;
+        if (!bounds || !pointer.current.active) return;
+        const moveX = pointer.current.x * 0.96;
+        const progress = Math.min(1, Math.abs(moveX) / Math.max(bounds.width, 1));
+        const rotation = Math.max(-5, Math.min(5, (moveX / Math.max(bounds.width, 1)) * 6));
+        card.style.transform = `translate3d(${moveX.toFixed(2)}px,${(-progress * 2).toFixed(2)}px,0) rotateZ(${rotation.toFixed(2)}deg) scale(${(1 - progress * 0.004).toFixed(4)})`;
+      });
+    }
     if (Math.abs(dx) > Math.abs(dy) + 5) event.preventDefault();
   };
 
@@ -833,12 +812,7 @@ export function EmergencyFeedDeck({
       );
     }
     return (
-      <div className="grid min-h-[32rem] place-items-center text-center">
-        <div>
-          <span className="page-loading-spinner mx-auto" aria-hidden="true" />
-          <p className="mt-4 text-sm font-medium text-white/70">Opening direct company feeds…</p>
-        </div>
-      </div>
+      <div className="mx-auto mt-2 h-[min(68svh,35rem)] w-full max-w-[23rem] animate-pulse rounded-[1.25rem] border border-[#26313e] bg-[#151d27]" role="status" aria-label="Loading jobs" />
     );
   }
 
@@ -858,11 +832,10 @@ export function EmergencyFeedDeck({
         tabIndex={-1}
         className="mx-auto mt-20 max-w-sm text-center outline-none"
       >
-        <WifiOff className="mx-auto size-7 text-[#aaa4ff]" aria-hidden="true" />
-        <h1 className="mt-5 text-3xl font-semibold tracking-[-0.05em]">Company feeds are taking a break</h1>
-        <p className="mt-3 text-sm leading-6 text-white/58">Your saved jobs and swipe history remain safe.</p>
-        <button type="button" onClick={refresh} className="mt-6 min-h-12 rounded-full bg-white px-6 text-sm font-semibold text-[#111827]">
-          Try again
+        <WifiOff className="mx-auto size-7 text-[#6f9bea]" aria-hidden="true" />
+        <h1 className="mt-5 text-2xl font-semibold tracking-[-0.04em]">Feed unavailable</h1>
+        <button type="button" onClick={refresh} className="mt-6 min-h-12 rounded-xl bg-[#4f7fd8] px-6 text-sm font-semibold text-white">
+          Retry
         </button>
       </section>
     );
@@ -916,19 +889,10 @@ export function EmergencyFeedDeck({
             emptyStateRef.current = element;
           }}
           tabIndex={-1}
-          className="grid min-h-[32rem] place-items-center text-center outline-none"
+          className="mx-auto mt-2 h-[min(68svh,35rem)] w-full max-w-[23rem] animate-pulse rounded-[1.25rem] border border-[#26313e] bg-[#151d27] outline-none"
+          role="status"
+          aria-label="Loading jobs"
         >
-          <div>
-            <span className="page-loading-spinner mx-auto" aria-hidden="true" />
-            <p className="mt-4 text-sm font-medium text-white/70">
-              Checking the next company boards…
-            </p>
-            {directFeedStatus.totalSources > 0 ? (
-              <p className="mt-2 text-xs text-white/42">
-                {directFeedStatus.checkedSources} of {directFeedStatus.totalSources} checked
-              </p>
-            ) : null}
-          </div>
         </div>
       );
     }
@@ -938,26 +902,17 @@ export function EmergencyFeedDeck({
         tabIndex={-1}
         className="mx-auto mt-20 max-w-sm text-center outline-none"
       >
-        <BriefcaseBusiness className="mx-auto size-7 text-[#aaa4ff]" aria-hidden="true" />
-        <h1 className="mt-5 text-3xl font-semibold tracking-[-0.05em]">
+        <BriefcaseBusiness className="mx-auto size-7 text-[#6f9bea]" aria-hidden="true" />
+        <h1 className="mt-5 text-2xl font-semibold tracking-[-0.04em]">
           {savedView
-            ? "No on-device saves yet"
+            ? "No saved jobs"
             : directFeedStatus.retryAt !== null
-              ? "Feed check paused"
-              : "You’re caught up for now"}
+              ? "Feed paused"
+              : "Caught up"}
         </h1>
-        <p className="mt-3 text-sm leading-6 text-white/58">
-          {savedView
-            ? "Jobs saved while sync is paused will appear here."
-            : directFeedStatus.retryAt !== null
-              ? "A company board did not respond. Your decisions are safe, and the app will retry shortly."
-              : directFeedStatus.failedSources > 0
-                ? `You reviewed the strongest relevant roles from ${directFeedStatus.successfulSources} responding company boards. ${directFeedStatus.failedSources} unavailable ${directFeedStatus.failedSources === 1 ? "board is" : "boards are"} scheduled for the next automatic check.`
-                : `You reviewed the strongest relevant roles from all ${directFeedStatus.totalSources || "available"} official company boards. New postings are checked again automatically.`}
-        </p>
         {!savedView ? (
-          <button type="button" onClick={refresh} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full border border-white/15 px-6 text-sm font-semibold">
-            <RotateCcw className="size-4" aria-hidden="true" /> Check now
+          <button type="button" onClick={refresh} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-xl border border-[#303b49] bg-[#151d27] px-6 text-sm font-semibold">
+            <RotateCcw className="size-4" aria-hidden="true" /> Refresh
           </button>
         ) : null}
       </section>
@@ -967,21 +922,9 @@ export function EmergencyFeedDeck({
   return (
     <>
     <section className="relative z-0 mx-auto mt-2 w-full max-w-[25rem]">
-      <div className="mx-auto flex min-h-9 w-full max-w-[23rem] items-center justify-between gap-3 px-1 text-[10px] font-medium text-[#929db2]">
-        <span className="min-w-0 truncate">
-          {directFeedStatus.loadingMore
-            ? "Checking more official boards…"
-            : directFeedStatus.totalSources > 0
-              ? `${directFeedStatus.checkedSources}/${directFeedStatus.totalSources} official boards checked`
-              : "For You · official company boards"}
-          {directFeedStatus.failedSources > 0
-            ? ` · ${directFeedStatus.failedSources} unavailable`
-            : ""}
-        </span>
-        <span className="shrink-0 tabular-nums">
-          {jobs.length} ready on this device
-        </span>
-      </div>
+      <header className="mx-auto flex h-9 w-full max-w-[23rem] items-center px-1" aria-label="RoleDex">
+        <span className="text-[1.05rem] font-bold tracking-[-0.04em] text-white">Role<span className="text-[#6f9bea]">Dex</span></span>
+      </header>
       {announcement.startsWith("Couldn’t") ? (
         <p
           className="mx-auto mb-2 max-w-[23rem] rounded-xl border border-amber-300/20 bg-amber-300/[0.08] px-3 py-2 text-center text-[11px] leading-4 text-amber-100"
@@ -990,16 +933,16 @@ export function EmergencyFeedDeck({
           {announcement}
         </p>
       ) : null}
-      <div data-feed-status="true" data-gesture-hint="true" className="job-deck-stage relative isolate mx-auto mt-1 w-full max-w-[23rem] [perspective:1100px]">
+      <div className="job-deck-stage relative isolate mx-auto mt-1 w-full max-w-[23rem]">
         {next && nextRead ? (
-          <div className="deck-card-under pointer-events-none absolute inset-0 origin-bottom opacity-75 [backface-visibility:hidden]" aria-hidden="true" style={{ transform: "translate3d(0,10px,-24px) scale(.965)" }}>
+          <div className="deck-card-under pointer-events-none absolute inset-0 origin-bottom opacity-70 [backface-visibility:hidden]" aria-hidden="true" style={{ transform: "translate3d(0,8px,0) scale(.975)" }}>
             <EmergencyJobCard job={next} read={nextRead} preview />
           </div>
         ) : null}
         <article
           key={current.id}
           ref={activeRef}
-          className="deck-card-active absolute inset-0 z-10 touch-pan-y cursor-grab select-none rounded-[1.75rem] outline-none [backface-visibility:hidden] [transform-style:preserve-3d] [transform:translateZ(0)] active:cursor-grabbing focus-visible:ring-3 focus-visible:ring-primary/45"
+          className="deck-card-active absolute inset-0 z-10 touch-pan-y cursor-grab select-none rounded-[1.25rem] outline-none [backface-visibility:hidden] [transform:translateZ(0)] active:cursor-grabbing focus-visible:ring-3 focus-visible:ring-primary/45"
           tabIndex={0}
           role="button"
           aria-label={`${current.title} at ${current.company}. Tap for the job brief, swipe left to pass, or swipe right to save.`}
@@ -1034,10 +977,6 @@ export function EmergencyFeedDeck({
           <div aria-hidden="true" className="deck-stamp deck-stamp-pass pointer-events-none absolute right-5 top-7 z-30 opacity-0">Pass</div>
           <EmergencyJobCard job={current} read={currentRead} />
         </article>
-      </div>
-      <div className="deck-gesture-hint mx-auto mt-2 flex max-w-[23rem] items-center justify-center gap-2 px-2 text-[11px] leading-4 text-[#929db2]" role="status">
-        <MoveHorizontal className="size-3.5 text-[#8d84ff]" aria-hidden="true" />
-        <span>Tilt gently · swipe to decide · tap for job brief</span>
       </div>
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
     </section>

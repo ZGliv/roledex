@@ -10,7 +10,7 @@
   --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
   --font-heading: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-bricolage), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -53,24 +53,24 @@
 }
 
 :root {
-  --background: #060913;
-  --foreground: #f6f8fc;
-  --card: rgb(255 255 255 / 72%);
-  --card-foreground: #111827;
-  --popover: #ffffff;
-  --popover-foreground: #111827;
-  --primary: #5b55e7;
+  --background: #0f151d;
+  --foreground: #f3f5f8;
+  --card: #151d27;
+  --card-foreground: #f3f5f8;
+  --popover: #18212c;
+  --popover-foreground: #f3f5f8;
+  --primary: #4f7fd8;
   --primary-foreground: #ffffff;
-  --secondary: #dce6f1;
-  --secondary-foreground: #253047;
-  --muted: #dbe5f0;
-  --muted-foreground: #627187;
-  --accent: #e9e7ff;
-  --accent-foreground: #554bd2;
+  --secondary: #26313e;
+  --secondary-foreground: #e6eaf0;
+  --muted: #202a36;
+  --muted-foreground: #97a3b2;
+  --accent: #1f2c3d;
+  --accent-foreground: #9ab8ee;
   --destructive: #c84a5d;
   --border: oklch(0.25 0.025 265 / 11%);
   --input: oklch(0.25 0.025 265 / 15%);
-  --ring: #6557f6;
+  --ring: #6f9bea;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -81,18 +81,18 @@
   --dock-offset: max(0.75rem, env(safe-area-inset-bottom));
   --dock-clearance: 1rem;
   --dock-reserve: calc(var(--dock-height) + var(--dock-offset) + var(--dock-clearance));
-  --product-accent: #8176ff;
+  --product-accent: #4f7fd8;
   --app-dock-height: var(--dock-height);
   --app-dock-offset: var(--dock-offset);
   --app-dock-clearance: var(--dock-reserve);
   --sidebar: #edf4fa;
   --sidebar-foreground: #111827;
-  --sidebar-primary: #6259df;
+  --sidebar-primary: #4f7fd8;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #e2e8f0;
   --sidebar-accent-foreground: #253047;
   --sidebar-border: oklch(0.25 0.025 265 / 11%);
-  --sidebar-ring: #6259df;
+  --sidebar-ring: #6f9bea;
   --fit-high: #078b67;
   --fit-mid: #ae7416;
   --fit-low: #cc4257;
@@ -143,18 +143,18 @@
     @apply bg-background text-foreground antialiased;
     min-width: 320px;
     min-height: 100dvh;
-    background: #060913;
+    background: #0f151d;
     overscroll-behavior-y: none;
   }
   html {
     @apply font-sans;
     color-scheme: dark;
-    background: #060913;
+    background: #0f151d;
     text-rendering: optimizeLegibility;
   }
   ::selection {
     color: #ffffff;
-    background: #5b55e7;
+    background: #4f7fd8;
   }
 }
 
@@ -1782,5 +1782,146 @@
 
   .saved-job-listing {
     border: 1px solid CanvasText !important;
+  }
+}
+
+/* RoleDex discovery: flat, quiet surfaces tuned for touch performance. */
+.job-deck-bg {
+  color: #f3f5f8;
+  background: #0f151d;
+}
+
+.deck-live-scene,
+.job-deck-stage::before,
+.job-deck-stage::after,
+.job-card-interactive-glare,
+.job-card-ambient,
+.job-card-gloss,
+.job-card-prism-field,
+.job-card-layout-decor {
+  display: none !important;
+}
+
+.roledex-job-card {
+  border-color: #2b3542;
+  background: #151d27;
+  box-shadow: 0 18px 42px rgb(0 0 0 / 24%);
+  color: #f3f5f8;
+  transform: translateZ(0);
+}
+
+.roledex-card-accent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.25rem;
+  background: #4f7fd8;
+}
+
+.roledex-company-mark {
+  border-color: rgb(10 15 22 / 18%);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 12%);
+}
+
+.job-card-preview-veil {
+  z-index: 2;
+  background: rgb(15 21 29 / 18%);
+  opacity: 1;
+  transition: opacity 160ms ease-out;
+}
+
+.deck-card-under[data-promoting="true"] .job-card-preview-veil {
+  opacity: 0;
+}
+
+.job-deck-stage {
+  --deck-error-space: 0rem;
+  --deck-feedback-space: 0rem;
+  --deck-hint-space: 0rem;
+  --deck-status-space: 0rem;
+  height: clamp(
+    27rem,
+    calc(
+      100dvh - max(0.75rem, env(safe-area-inset-top)) -
+        var(--dock-reserve) - 1.75rem - var(--deck-feedback-space) -
+        var(--deck-error-space)
+    ),
+    42rem
+  );
+  transition: height 180ms ease-out;
+}
+
+.deck-card-under {
+  filter: brightness(0.9);
+  will-change: transform, opacity;
+}
+
+.deck-card-active {
+  transform-style: flat;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
+}
+
+.deck-stamp {
+  border-width: 1px;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.deck-stamp-save {
+  color: #a4e8c9;
+  border-color: #3c9f77;
+  background: #173529;
+  box-shadow: none;
+  text-shadow: none;
+  transform: rotate(-5deg) translate3d(0, var(--stamp-lift, 5px), 0) scale(var(--stamp-scale, 0.92));
+}
+
+.deck-stamp-pass {
+  color: #f2afb8;
+  border-color: #b95b69;
+  background: #3a2026;
+  box-shadow: none;
+  text-shadow: none;
+  transform: rotate(5deg) translate3d(0, var(--stamp-lift, 5px), 0) scale(var(--stamp-scale, 0.92));
+}
+
+.obsidian-dock {
+  border-color: #2b3542;
+  background: #151d27;
+  box-shadow: 0 14px 36px rgb(0 0 0 / 28%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.obsidian-dock a,
+.obsidian-dock button {
+  color: #7f8a99;
+}
+
+.obsidian-dock a:hover,
+.obsidian-dock button:hover,
+.obsidian-dock button[data-popup-open] {
+  color: #d9dee5;
+  background: #1c2632;
+}
+
+.obsidian-dock a[aria-current="page"] {
+  color: #7da4ed;
+}
+
+.apply-shimmer::after {
+  display: none;
+}
+
+@media (max-height: 700px) {
+  .job-deck-stage {
+    height: calc(100dvh - var(--dock-reserve) - max(0.75rem, env(safe-area-inset-top)) - 1.25rem);
   }
 }

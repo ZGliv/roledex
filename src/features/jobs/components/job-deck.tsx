@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
@@ -14,13 +13,11 @@ import {
   CircleOff,
   Heart,
   LoaderCircle,
-  MoveHorizontal,
   RefreshCw,
   SlidersHorizontal,
   X,
 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
 import type { JobDecisionReason } from "@/db/schema";
 import type { DeckDecision } from "@/features/decisions/policy";
 import {
@@ -37,8 +34,6 @@ import {
   waitForDeckMotion,
 } from "@/features/jobs/components/job-deck-motion";
 import { JobSwipeCard } from "@/features/jobs/components/job-swipe-card";
-import { companyVisual } from "@/features/jobs/components/company-visual";
-import { nextDeckCheckLabel } from "@/features/jobs/feed-copy";
 import { saveJobFeedSnapshot } from "@/features/jobs/feed-snapshot";
 import type {
   EnrichedJobCardViewModel,
@@ -75,8 +70,6 @@ type GestureState = {
 };
 
 const TAP_SLOP = 12;
-const TILT_RESISTANCE_PX = 18;
-const TILT_TRAVEL_PX = 48;
 const HORIZONTAL_LOCK_RATIO = 1.3;
 const MIN_FLING_DISTANCE = 24;
 const MIN_FLING_VELOCITY = 0.48;
@@ -92,7 +85,6 @@ const STREAM_PAGE_SIZE = 20;
 const LOW_INVENTORY_RECHECK_DELAY_MS = 1_200;
 const LOW_INVENTORY_RECHECK_INTERVAL_MS = 5 * 60_000;
 const MAX_TIMEOUT_DELAY_MS = 2_147_000_000;
-const GESTURE_HINT_STORAGE_KEY = "jobswipe:gesture-hint-seen:v2";
 
 const PASS_FEEDBACK_OPTIONS = [
   { code: "wrong_role", label: "Wrong role" },
@@ -124,37 +116,17 @@ function clamp(value: number, minimum: number, maximum: number) {
 }
 
 function translationWithTiltResistance(travelX: number) {
-  const distance = Math.abs(travelX);
-
-  // Small movements mostly rotate the card in place. Translation then eases
-  // continuously toward 1:1 tracking, avoiding a dead-zone snap when the
-  // user's finger crosses a fixed threshold.
-  const translatedDistance =
-    distance -
-    TILT_RESISTANCE_PX * Math.tanh(distance / TILT_RESISTANCE_PX);
-  return Math.sign(travelX) * translatedDistance;
-}
-
-function tiltFromTravel(travel: number) {
-  return clamp(travel / TILT_TRAVEL_PX, -1, 1);
+  return travelX * 0.96;
 }
 
 function cardTransform(
   x: number,
   width: number,
-  pointerX = 0,
-  pointerY = 0,
 ) {
   const progress = clamp(Math.abs(x) / Math.max(width, 1), 0, 1);
-  const rotationZ = clamp((x / Math.max(width, 1)) * 9.5, -9.5, 9.5);
-  const rotationX = clamp(pointerY * -6.2, -6.6, 6.6);
-  const rotationY = clamp(pointerX * 7.6, -8, 8);
-  const pointerEnergy = clamp(Math.hypot(pointerX, pointerY), 0, 1);
-  const scale = 1 + pointerEnergy * 0.002 - progress * 0.005;
-
-  // Keep translation leftmost so the card stays under the finger even while
-  // the perspective/tilt matrix is changing.
-  return `translate3d(${x}px, ${-3 * progress}px, 0) perspective(950px) rotateX(${rotationX}deg) rotateY(${rotationY}deg) rotateZ(${rotationZ}deg) scale(${scale})`;
+  const rotationZ = clamp((x / Math.max(width, 1)) * 6, -5, 5);
+  const scale = 1 - progress * 0.004;
+  return `translate3d(${x}px, ${-2 * progress}px, 0) rotateZ(${rotationZ}deg) scale(${scale})`;
 }
 
 function latestPointerPosition(event: ReactPointerEvent<HTMLDivElement>) {
@@ -166,7 +138,7 @@ function latestPointerPosition(event: ReactPointerEvent<HTMLDivElement>) {
 function nextCardTransform(progress: number) {
   const boundedProgress = clamp(progress, 0, 1);
   const rest = 1 - boundedProgress;
-  return `perspective(900px) translate3d(0, ${11 * rest}px, 0) rotateX(${1.1 * rest}deg) scale(${0.972 + boundedProgress * 0.028})`;
+  return `translate3d(0, ${8 * rest}px, 0) scale(${0.975 + boundedProgress * 0.025})`;
 }
 
 function prefersReducedMotion() {
@@ -243,7 +215,6 @@ export function JobDeck({
   const [error, setError] = useState<string | null>(null);
   const [animating, setAnimating] = useState(false);
   const [announcement, setAnnouncement] = useState("");
-  const [gestureHintVisible, setGestureHintVisible] = useState(false);
   const [checkingForJobs, setCheckingForJobs] = useState(
     initialJobs.length === 0 &&
       initialAdmissionCounts.matches === 0 &&
@@ -257,7 +228,6 @@ export function JobDeck({
   const [feedbackSaving, setFeedbackSaving] =
     useState<JobDecisionReason | null>(null);
   const activeCardRef = useRef<HTMLDivElement>(null);
-  const activeGlareRef = useRef<HTMLDivElement>(null);
   const emptyStateHeadingRef = useRef<HTMLHeadingElement>(null);
   const nextCardRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -276,8 +246,6 @@ export function JobDeck({
   const queuedLightXRef = useRef(0);
   const queuedLightYRef = useRef(0);
   const cardWidthRef = useRef(420);
-  const cardBoundsRef = useRef({ height: 620, left: 0, top: 0, width: 420 });
-  const reducedMotionRef = useRef(false);
   const decisionLocked = useRef(false);
   const dismissedJobIdsRef = useRef(new Set<string>());
   const focusAfterDecisionRef = useRef(false);
@@ -316,33 +284,10 @@ export function JobDeck({
   const interactionLocked =
     animating || feedbackSaving !== null;
 
-  const dismissGestureHint = useCallback(() => {
-    setGestureHintVisible(false);
-    try {
-      window.localStorage.setItem(GESTURE_HINT_STORAGE_KEY, "true");
-    } catch {
-      // Storage can be unavailable in strict privacy modes. The hint still
-      // dismisses for the current page view.
-    }
-  }, []);
-
   const cancelDelayedFeedback = useCallback(() => {
     if (dialogFeedbackTimerRef.current === null) return;
     window.clearTimeout(dialogFeedbackTimerRef.current);
     dialogFeedbackTimerRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      try {
-        setGestureHintVisible(
-          window.localStorage.getItem(GESTURE_HINT_STORAGE_KEY) !== "true",
-        );
-      } catch {
-        setGestureHintVisible(true);
-      }
-    });
-    return () => cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -377,30 +322,12 @@ export function JobDeck({
     if (!activeCard) return;
 
     const width = cardWidthRef.current || 1;
-    const visualPointerX = reducedMotionRef.current ? 0 : pointerX;
-    const visualPointerY = reducedMotionRef.current ? 0 : pointerY;
     const progress = clamp(Math.abs(x) / (width * 0.55), 0, 1);
-    const pointerEnergy = clamp(
-      Math.hypot(visualPointerX, visualPointerY),
-      0,
-      1,
-    );
-    activeCard.style.transform = cardTransform(
-      x,
-      width,
-      visualPointerX,
-      visualPointerY,
-    );
-
-    const glare = activeGlareRef.current;
-    if (glare) {
-      const glareX = clamp(lightX * 34 + (x / width) * 4, -36, 36);
-      const glareY = clamp(lightY * 48, -48, 48);
-      glare.style.transform = `translate3d(${glareX}px, ${glareY}px, 1px) scale(1.08)`;
-      glare.style.opacity = String(
-        clamp(pointerEnergy * 0.29 + progress * 0.11, 0, 0.34),
-      );
-    }
+    activeCard.style.transform = cardTransform(x, width);
+    void pointerX;
+    void pointerY;
+    void lightX;
+    void lightY;
 
     if (nextCardRef.current) {
       nextCardRef.current.style.transform = nextCardTransform(progress);
@@ -426,10 +353,6 @@ export function JobDeck({
       activeCard.style.removeProperty("transform-origin");
       activeCard.style.removeProperty("will-change");
       activeCard.dataset.interacting = "false";
-    }
-    if (activeGlareRef.current) {
-      activeGlareRef.current.style.removeProperty("transform");
-      activeGlareRef.current.style.removeProperty("opacity");
     }
     if (stageRef.current) stageRef.current.dataset.interacting = "false";
     if (nextCardRef.current) {
@@ -525,7 +448,6 @@ export function JobDeck({
       if (!job || decisionLocked.current) return;
       cancelDelayedFeedback();
       setFeedbackPrompt(null);
-      const decisionOriginatedInDialog = detailsOpen;
 
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
@@ -556,7 +478,7 @@ export function JobDeck({
       if (nextCard) {
         nextCard.dataset.promoting = "true";
         nextCard
-          .querySelector<HTMLElement>(".obsidian-job-card")
+          .querySelector<HTMLElement>(".roledex-job-card")
           ?.removeAttribute("aria-hidden");
       }
 
@@ -586,8 +508,6 @@ export function JobDeck({
           // A browser can drop pointer capture as it starts native scrolling.
         }
       }
-
-      dismissGestureHint();
 
       const activeElement = document.activeElement;
       focusAfterDecisionRef.current =
@@ -639,11 +559,11 @@ export function JobDeck({
       const reducedMotion = prefersReducedMotion();
       const hasGestureMomentum = Math.abs(currentX) >= MIN_FLING_DISTANCE;
       const duration = verticalExit
-        ? 225
+        ? 210
         : clamp(
-            255 - (hasGestureMomentum ? Math.abs(gesture.current.vx) * 34 : 0),
-            175,
-            255,
+            230 - (hasGestureMomentum ? Math.abs(gesture.current.vx) * 28 : 0),
+            165,
+            230,
           );
       const exitDistance = Math.max(window.innerWidth, width) + width;
       const exitX = direction * exitDistance;
@@ -652,7 +572,7 @@ export function JobDeck({
       const toTransform =
         verticalExit
           ? "translate3d(0, -48vh, 0) scale(.965)"
-          : `translate3d(${exitX}px, 14px, 0) rotateZ(${direction * 13}deg) scale(.985)`;
+          : `translate3d(${exitX}px, 8px, 0) rotateZ(${direction * 7}deg) scale(.99)`;
 
       if (
         (decision === "saved" || decision === "apply") &&
@@ -687,8 +607,8 @@ export function JobDeck({
                 {
                   transform: verticalExit
                     ? toTransform
-                    : `perspective(1100px) translate3d(${exitX}px, 14px, 0) rotateX(0deg) rotateY(${direction * 5}deg) rotateZ(${direction * 13}deg) scale(.985)`,
-                  opacity: verticalExit ? 0 : 0.96,
+                    : `translate3d(${exitX}px, 8px, 0) rotateZ(${direction * 7}deg) scale(.99)`,
+                  opacity: verticalExit ? 0 : 0.9,
                   offset: 1,
                 },
               ],
@@ -706,8 +626,7 @@ export function JobDeck({
                   offset: 0,
                 },
                 {
-                  transform:
-                    "perspective(900px) translate3d(0, -1px, 0) rotateX(0deg) scale(1.003)",
+                  transform: "translate3d(0, -1px, 0) scale(1.002)",
                   opacity: 1,
                   offset: 0.8,
                 },
@@ -744,24 +663,6 @@ export function JobDeck({
                     ? `${job.title} saved to learn first.`
                     : `${job.title} passed.`,
           );
-          if (decision === "skipped" || decision === "saved") {
-            const revealFeedback = () => {
-              setFeedbackPrompt({ decision, jobId: job.id, title: job.title });
-              setAnnouncement(
-                decision === "saved"
-                  ? `${job.title} saved. Optional feedback is available.`
-                  : `${job.title} passed. Optional feedback is available.`,
-              );
-            };
-            if (decisionOriginatedInDialog) {
-              dialogFeedbackTimerRef.current = window.setTimeout(() => {
-                dialogFeedbackTimerRef.current = null;
-                revealFeedback();
-              }, 140);
-            } else {
-              revealFeedback();
-            }
-          }
           gesture.current.axis = "pending";
           gesture.current.pointerId = -1;
           gesture.current.x = 0;
@@ -796,8 +697,6 @@ export function JobDeck({
       cancelDelayedFeedback,
       cancelMotionAnimations,
       currentJob,
-      detailsOpen,
-      dismissGestureHint,
       jobs.length,
       renderSwipePosition,
     ],
@@ -817,7 +716,6 @@ export function JobDeck({
     setFeedbackPrompt(null);
 
     const startingX = gesture.current.x;
-    reducedMotionRef.current = prefersReducedMotion();
     cancelMotionAnimations();
     if (frameRef.current !== null) {
       cancelAnimationFrame(frameRef.current);
@@ -828,41 +726,19 @@ export function JobDeck({
     const pointer = latestPointerPosition(event);
     const cardBounds = activeCardRef.current?.getBoundingClientRect();
     cardWidthRef.current = cardBounds?.width || 420;
-    cardBoundsRef.current = {
-      height: cardBounds?.height || 620,
-      left: cardBounds?.left || 0,
-      top: cardBounds?.top || 0,
-      width: cardBounds?.width || 420,
-    };
-    const pointerX = clamp(
-      ((pointer.clientX - cardBoundsRef.current.left) /
-        cardBoundsRef.current.width -
-        0.5) *
-        2,
-      -1,
-      1,
-    );
-    const pointerY = clamp(
-      ((pointer.clientY - cardBoundsRef.current.top) /
-        cardBoundsRef.current.height -
-        0.5) *
-        2,
-      -1,
-      1,
-    );
     queuedXRef.current = startingX;
     queuedPointerXRef.current = 0;
     queuedPointerYRef.current = 0;
-    queuedLightXRef.current = pointerX;
-    queuedLightYRef.current = pointerY;
+    queuedLightXRef.current = 0;
+    queuedLightYRef.current = 0;
     gesture.current = {
       active: true,
       axis: "pending",
       baseX: startingX,
       lastTime: now,
       lastX: startingX,
-      lightX: pointerX,
-      lightY: pointerY,
+      lightX: 0,
+      lightY: 0,
       maxDistance: 0,
       pointerX: 0,
       pointerY: 0,
@@ -875,12 +751,9 @@ export function JobDeck({
     };
     event.currentTarget.style.willChange = "transform";
     event.currentTarget.dataset.interacting = "true";
-    activeGlareRef.current = event.currentTarget.querySelector<HTMLDivElement>(
-      ".job-card-interactive-glare",
-    );
     if (stageRef.current) stageRef.current.dataset.interacting = "true";
     if (nextCardRef.current) nextCardRef.current.style.willChange = "transform";
-    renderSwipePosition(startingX, 0, 0, pointerX, pointerY);
+    renderSwipePosition(startingX, 0, 0, 0, 0);
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
@@ -899,29 +772,14 @@ export function JobDeck({
     let x = current.baseX;
     current.y = travelY;
     current.maxDistance = Math.max(current.maxDistance, travelDistance);
-    current.pointerX = tiltFromTravel(travelX);
-    current.pointerY = tiltFromTravel(travelY);
-    current.lightX = clamp(
-      ((pointer.clientX - cardBoundsRef.current.left) /
-        cardBoundsRef.current.width -
-        0.5) *
-        2,
-      -1,
-      1,
-    );
-    current.lightY = clamp(
-      ((pointer.clientY - cardBoundsRef.current.top) /
-        cardBoundsRef.current.height -
-        0.5) *
-        2,
-      -1,
-      1,
-    );
+    current.pointerX = 0;
+    current.pointerY = 0;
+    current.lightX = 0;
+    current.lightY = 0;
 
     if (current.axis === "pending" && travelDistance > TAP_SLOP) {
       if (Math.abs(travelX) > Math.abs(travelY) * HORIZONTAL_LOCK_RATIO) {
         current.axis = "horizontal";
-        dismissGestureHint();
       }
     }
 
@@ -991,24 +849,10 @@ export function JobDeck({
         : current.baseX;
     current.x = finalX;
     current.y = finalTravelY;
-    current.pointerX = tiltFromTravel(finalTravelX);
-    current.pointerY = tiltFromTravel(finalTravelY);
-    current.lightX = clamp(
-      ((pointer.clientX - cardBoundsRef.current.left) /
-        cardBoundsRef.current.width -
-        0.5) *
-        2,
-      -1,
-      1,
-    );
-    current.lightY = clamp(
-      ((pointer.clientY - cardBoundsRef.current.top) /
-        cardBoundsRef.current.height -
-        0.5) *
-        2,
-      -1,
-      1,
-    );
+    current.pointerX = 0;
+    current.pointerY = 0;
+    current.lightX = 0;
+    current.lightY = 0;
     current.maxDistance = Math.max(
       current.maxDistance,
       Math.hypot(finalTravelX, finalTravelY),
@@ -1175,7 +1019,6 @@ export function JobDeck({
     gesture.current.lightY = 0;
     cancelMotionAnimations();
     resetSwipeStyles();
-    activeGlareRef.current = null;
   }, [cancelMotionAnimations, currentJob?.id, resetSwipeStyles]);
 
   useEffect(() => {
@@ -1452,48 +1295,25 @@ export function JobDeck({
         : "caught_up";
   const emptyHeading =
     emptyMode === "checking"
-      ? "Checking for new roles"
+      ? "Loading"
       : emptyMode === "error"
-        ? "We couldn’t check right now"
-        : "You’re caught up";
-  const emptyDescription =
-    emptyMode === "checking"
-      ? "Looking for fresh roles that still respect every hard filter."
-      : emptyMode === "error"
-        ? "Your saved jobs and swipe history are safe. We’ll try again automatically."
-        : "You’ve seen every credible role currently in your For You queue. We won’t pad it with weak or incompatible listings.";
-
-  const activeVisual = currentJob ? companyVisual(currentJob.company) : null;
-  const deckVisualStyle = activeVisual
-    ? ({
-        "--deck-company-accent": activeVisual.accent,
-        "--deck-company-glass": activeVisual.background,
-        "--deck-company-ink": activeVisual.foreground,
-      } as CSSProperties)
-    : undefined;
+        ? "Feed unavailable"
+        : "Caught up";
 
   return (
-    <section
-      className="relative z-0 mx-auto w-full max-w-[25rem]"
-      style={deckVisualStyle}
-    >
-      <div
-        className="deck-live-scene pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-        aria-hidden="true"
-      >
-        <span className="deck-live-orb deck-live-orb-a" />
-        <span className="deck-live-orb deck-live-orb-b" />
-        <span className="deck-live-grid" />
-      </div>
+    <section className="relative z-0 mx-auto w-full max-w-[25rem]">
+      <header className="mx-auto flex h-9 w-full max-w-[23rem] items-center px-1" aria-label="RoleDex">
+        <span className="text-[1.05rem] font-bold tracking-[-0.04em] text-white">Role<span className="text-[#6f9bea]">Dex</span></span>
+      </header>
       {!currentJob ? (
-        <div className="mx-auto mt-3 max-w-[23rem] px-2 text-center">
+        <div className="mx-auto mt-3 max-w-[23rem] text-center">
         <section
-          className="w-full rounded-[1.4rem] border border-white/12 bg-white/[0.055] px-5 py-5 text-white shadow-[0_18px_46px_rgba(0,0,0,.22),inset_0_1px_0_rgba(255,255,255,.12)] backdrop-blur-[18px] backdrop-saturate-[135%]"
+          className="w-full rounded-[1.25rem] border border-[#2b3542] bg-[#151d27] px-5 py-8 text-white"
           role="status"
           aria-live="polite"
           aria-busy={emptyMode === "checking"}
         >
-          <span className="mx-auto grid size-10 place-items-center rounded-[0.85rem] border border-white/14 bg-white/[0.075] text-[#a9a3ff] shadow-[inset_0_1px_0_rgba(255,255,255,.14),0_9px_24px_rgba(0,0,0,.16)]">
+          <span className="mx-auto grid size-10 place-items-center rounded-xl border border-[#303b49] bg-[#1b2531] text-[#6f9bea]">
             {emptyMode === "checking" ? (
               <LoaderCircle className="size-4.5 animate-spin" aria-hidden="true" />
             ) : emptyMode === "error" ? (
@@ -1509,27 +1329,11 @@ export function JobDeck({
           >
             {emptyHeading}
           </h1>
-          <p className="mx-auto mt-1.5 max-w-xs text-[12px] leading-[1.15rem] text-[#aeb7ca]">
-            {emptyDescription}
-          </p>
-          {emptyMode === "error" && error ? (
-            <p
-              role="alert"
-              className="mx-auto mt-3 max-w-xs text-[11px] leading-4 text-[#f2a9b5]"
-            >
-              {error}
-            </p>
-          ) : null}
-          <p className="mt-3 text-[10.5px] font-medium text-[#8995ab]">
-            {emptyMode === "checking"
-              ? "Checking your For You queue…"
-              : nextDeckCheckLabel(replenishment?.nextCheckAt)}
-          </p>
 
           {emptyMode === "checking" ? (
             <Link
               href="/saved"
-              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-xs font-semibold text-[#c8cede] outline-none transition hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-white/35"
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-semibold text-[#aeb8c5] outline-none transition hover:bg-[#1c2632] hover:text-white focus-visible:ring-2 focus-visible:ring-[#6f9bea]"
             >
               <Heart className="size-3.5" aria-hidden="true" />
               Review saved jobs
@@ -1540,7 +1344,7 @@ export function JobDeck({
                 <button
                   type="button"
                   onClick={() => void checkForNewJobs()}
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-white/75 bg-white px-4 text-sm font-semibold text-[#182237] shadow-[0_10px_28px_rgba(0,0,0,.2),inset_0_1px_0_rgba(255,255,255,.95)] outline-none transition hover:bg-[#f2f4ff] focus-visible:ring-2 focus-visible:ring-white/50"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#4f7fd8] px-4 text-sm font-semibold text-white outline-none transition hover:bg-[#6693e2] focus-visible:ring-2 focus-visible:ring-[#8caef0]"
                 >
                   <RefreshCw className="size-4" aria-hidden="true" />
                   Try again
@@ -1548,7 +1352,7 @@ export function JobDeck({
               ) : (
                 <Link
                   href="/profile#direction"
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-white/75 bg-white px-4 text-sm font-semibold text-[#182237] shadow-[0_10px_28px_rgba(0,0,0,.2),inset_0_1px_0_rgba(255,255,255,.95)] outline-none transition hover:bg-[#f2f4ff] focus-visible:ring-2 focus-visible:ring-white/50"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#4f7fd8] px-4 text-sm font-semibold text-white outline-none transition hover:bg-[#6693e2] focus-visible:ring-2 focus-visible:ring-[#8caef0]"
                 >
                   <SlidersHorizontal className="size-4" aria-hidden="true" />
                   Tune your criteria
@@ -1557,7 +1361,7 @@ export function JobDeck({
               {emptyMode === "error" ? (
                 <Link
                   href="/profile#direction"
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.075] px-4 text-sm font-semibold text-[#dce1ed] shadow-[inset_0_1px_0_rgba(255,255,255,.12)] outline-none transition hover:bg-white/[0.12] hover:text-white focus-visible:ring-2 focus-visible:ring-white/35"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#303b49] bg-[#1b2531] px-4 text-sm font-semibold text-[#dce1ed] outline-none transition hover:bg-[#202b38] hover:text-white focus-visible:ring-2 focus-visible:ring-[#6f9bea]"
                 >
                   <SlidersHorizontal className="size-4" aria-hidden="true" />
                   Edit your filters
@@ -1565,7 +1369,7 @@ export function JobDeck({
               ) : null}
               <Link
                 href="/saved"
-                className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-xs font-semibold text-[#aeb7ca] outline-none transition hover:bg-white/[0.07] hover:text-white focus-visible:ring-2 focus-visible:ring-white/35"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-semibold text-[#aeb7ca] outline-none transition hover:bg-[#1c2632] hover:text-white focus-visible:ring-2 focus-visible:ring-[#6f9bea]"
               >
                 <Heart className="size-3.5" aria-hidden="true" />
                 Review saved jobs
@@ -1576,26 +1380,11 @@ export function JobDeck({
         </div>
       ) : (
         <>
-      {error ? (
-        <Card
-          role="alert"
-          className="glass-panel-strong mb-3 mt-3 border-[#db5366]/20 bg-[#fff2f4]/90 text-[#9d3445]"
-        >
-          <CardContent className="flex items-start gap-3 p-3.5 text-sm leading-5">
-            <CircleOff className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            {error}
-          </CardContent>
-        </Card>
-      ) : null}
-
       <div
         ref={stageRef}
-        data-gesture-hint={
-          (gestureHintVisible && !feedbackPrompt && !error) || undefined
-        }
         data-feedback-prompt={Boolean(feedbackPrompt) || undefined}
         data-has-error={Boolean(error) || undefined}
-        className="job-deck-stage relative isolate mx-auto mt-3 w-full max-w-[23rem]"
+        className="job-deck-stage relative isolate mx-auto mt-2 w-full max-w-[23rem]"
         aria-busy={interactionLocked}
       >
         {nextJob ? (
@@ -1624,7 +1413,7 @@ export function JobDeck({
           aria-disabled={interactionLocked}
           aria-roledescription="swipeable job card"
           aria-keyshortcuts="Enter Space ArrowLeft ArrowRight"
-          className="deck-card-active absolute inset-0 z-10 [touch-action:pinch-zoom] cursor-grab select-none rounded-[1.75rem] outline-none [backface-visibility:hidden] [transform:translateZ(0)] active:cursor-grabbing focus-visible:ring-3 focus-visible:ring-primary/45"
+          className="deck-card-active absolute inset-0 z-10 [touch-action:pan-y_pinch-zoom] cursor-grab select-none rounded-[1.25rem] outline-none [backface-visibility:hidden] [transform:translateZ(0)] active:cursor-grabbing focus-visible:ring-3 focus-visible:ring-primary/45"
           onClick={(event) => {
             // Pointer gestures are resolved in onPointerUp. A detail-less click is
             // generated by assistive technology or a programmatic activation.
@@ -1689,30 +1478,13 @@ export function JobDeck({
         </div>
 
       </div>
-
-      {gestureHintVisible && !feedbackPrompt && !error ? (
-        <div className="deck-gesture-hint mx-auto mt-2 flex max-w-[23rem] items-center gap-2 px-2 text-[11px] leading-4 text-[#929db2]" role="status">
-          <MoveHorizontal className="size-3.5 shrink-0 text-[#8d84ff]" aria-hidden="true" />
-          <span className="min-w-0 flex-1">
-            Tilt gently · swipe to decide · tap to open
-          </span>
-          <button
-            type="button"
-            onClick={dismissGestureHint}
-            className="grid size-11 shrink-0 place-items-center rounded-xl text-[#8994a8] outline-none transition-colors hover:bg-white/[0.07] hover:text-white focus-visible:ring-2 focus-visible:ring-white/30"
-            aria-label="Dismiss gesture help"
-          >
-            <X className="size-3.5" aria-hidden="true" />
-          </button>
-        </div>
-      ) : null}
         </>
       )}
 
       {feedbackPrompt ? (
         <aside
           data-decision-feedback={feedbackPrompt.decision}
-          className="deck-feedback-tray relative z-20 mx-auto mt-2 w-[calc(100%-0.5rem)] max-w-[23rem] rounded-[1.4rem] px-3 pb-3 pt-2.5 text-left"
+          className="deck-feedback-tray relative z-20 mx-auto mt-2 w-[calc(100%-0.5rem)] max-w-[23rem] rounded-2xl border border-[#2b3542] bg-[#151d27] px-3 pb-3 pt-2.5 text-left"
           role="region"
           aria-labelledby="decision-feedback-heading"
         >
@@ -1725,9 +1497,6 @@ export function JobDeck({
                 {feedbackPrompt.decision === "saved"
                   ? "What stood out?"
                   : "What was off?"}
-              </p>
-              <p className="truncate text-[10.5px] text-[#8f9aaf]">
-                Optional · this tunes the next cards
               </p>
             </div>
             <button
