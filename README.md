@@ -1,4 +1,4 @@
-# RoleDex (JobSwipe)
+# RoleDex
 
 RoleDex is a guest-first job discovery product built around a fast, card-based "job swipe" experience. Anyone with the link can browse a continuously refreshed feed, tune a profile, and keep or pass on jobs without an access key. A signed browser session keeps each visitor's profile, saves, passes, notes, and fit results separate from everyone else's.
 
@@ -119,6 +119,6 @@ The sequenced roadmap is in [PROJECT_PLAN.md](./PROJECT_PLAN.md), technical boun
 
 ## Important limitations
 
-The parser and discovery filter are deliberately conservative heuristics. They can miss facts or adjacent roles, but should not invent information. JobSwipe uses official public employer ATS feeds; it does not scrape LinkedIn or Indeed, submit applications, or send messages. Always review the original listing before acting on a score.
+The parser and discovery filter are deliberately conservative heuristics. They can miss facts or adjacent roles, but should not invent information. RoleDex uses official public employer ATS feeds; it does not scrape LinkedIn or Indeed, submit applications, or send messages. Always review the original listing before acting on a score.
 
 Guest identity is tied to a signed cookie in one browser. Clearing site data or switching browsers creates a new guest workspace until optional account-based sync is added. The administrator key must still remain private; it unlocks source management, manual imports, and the migrated owner workspace. Rotating the signing secret invalidates all visitor sessions. The cron route remains independently protected by `CRON_SECRET`. The PWA deliberately does not cache jobs, profiles, HTML, RSC payloads, or API responses for offline use.

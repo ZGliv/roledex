@@ -45,7 +45,7 @@ const localDatabaseUrl = process.env.DATABASE_URL?.trim();
 
 if (process.env.VERCEL && (!tursoDatabaseUrl || !tursoAuthToken)) {
   throw new Error(
-    "JobSwipe requires both TURSO_DATABASE_URL and TURSO_AUTH_TOKEN on Vercel.",
+    "RoleDex requires both TURSO_DATABASE_URL and TURSO_AUTH_TOKEN on Vercel.",
   );
 }
 

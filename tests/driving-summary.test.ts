@@ -45,7 +45,7 @@ describe("buildSpokenJobSummary", () => {
     expect(result.spokenText).toContain(
       "Biggest qualification gap: The listing asks for two years of implementation experience.",
     );
-    expect(result.spokenText).toContain("JobSwipe verdict: Apply as a Stretch.");
+    expect(result.spokenText).toContain("RoleDex verdict: Apply as a Stretch.");
     expect(result.spokenText).toContain("Question for reflection:");
   });
 
@@ -106,4 +106,3 @@ describe("buildSpokenJobSummary", () => {
     expect(result.spokenText).not.toContain("estimated compensation");
   });
 });
-

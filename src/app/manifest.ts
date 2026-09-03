@@ -5,8 +5,8 @@ const APP_CHROME_COLOR = "#060913";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "JobSwipe — Personal Job Discovery",
-    short_name: "JobSwipe",
+    name: "RoleDex — Personal Job Discovery",
+    short_name: "RoleDex",
     description: "Swipe through curated jobs and keep the roles worth pursuing.",
     start_url: "/",
     scope: "/",

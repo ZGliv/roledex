@@ -232,7 +232,7 @@ export function AccountDataControls({
         <SettingToggle
           checked={settings.reminderNotificationsEnabled}
           label="Application reminders"
-          description="Notify you about due follow-ups while JobSwipe is open."
+          description="Notify you about due follow-ups while RoleDex is open."
           onChange={(checked) => void enableReminders(checked)}
         />
         <SettingToggle

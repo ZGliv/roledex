@@ -13,7 +13,7 @@ const WIKIMEDIA_CACHE_SECONDS = 60 * 60 * 24 * 21;
 const WIKIMEDIA_MAX_RESPONSE_BYTES = 2_000_000;
 const WIKIMEDIA_REQUEST_TIMEOUT_MS = 5_500;
 const WIKIMEDIA_USER_AGENT =
-  "JobSwipe/1.0 (https://jobswipe-amber.vercel.app; company research for job seekers)";
+  "RoleDex/1.0 (https://roledex.vercel.app; company research for job seekers)";
 
 const wikidataSearchSchema = z
   .object({

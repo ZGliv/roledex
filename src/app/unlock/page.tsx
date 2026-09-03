@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 
 export const metadata: Metadata = {
   title: "Administrator access",
-  description: "Open restricted JobSwipe administration tools.",
+  description: "Open restricted RoleDex administration tools.",
 };
 
 type UnlockPageProps = {
@@ -29,7 +29,7 @@ export default async function UnlockPage({ searchParams }: UnlockPageProps) {
         <div className="flex items-center gap-3">
           <JobSwipeMark className="size-10 rounded-xl shadow-none" />
           <div>
-            <p className="text-sm font-semibold text-[#111827]">JobSwipe</p>
+            <p className="text-sm font-semibold text-[#111827]">RoleDex</p>
             <p className="text-xs text-[#697184]">Administrator tools</p>
           </div>
         </div>

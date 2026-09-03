@@ -14,7 +14,7 @@ export const GUEST_WORKSPACE_DAILY_ADMISSION_WINDOW_MS = 24 * 60 * 60 * 1_000;
 
 export class GuestWorkspaceCapacityError extends Error {
   constructor() {
-    super("JobSwipe is at guest capacity right now. Try again in a little while.");
+    super("RoleDex is at guest capacity right now. Try again in a little while.");
     this.name = "GuestWorkspaceCapacityError";
   }
 }

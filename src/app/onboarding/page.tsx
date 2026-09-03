@@ -10,7 +10,7 @@ import { getProductSettings } from "@/features/product/service";
 
 export const metadata: Metadata = {
   title: "Set up your search",
-  description: "Choose the roles and hard limits JobSwipe should use for your feed.",
+  description: "Choose the roles and hard limits RoleDex should use for your feed.",
 };
 export const dynamic = "force-dynamic";
 

@@ -260,7 +260,7 @@ function ActivityAndLearning({
         />
       ) : (
         <p className="py-4 text-[11px] leading-5 text-[#8490a4]">
-          Save and pass on roles to teach JobSwipe what to rank higher or lower.
+          Save and pass on roles to teach RoleDex what to rank higher or lower.
         </p>
       )}
 
@@ -551,7 +551,7 @@ export function ProfileDashboard({
             description={isGuest ? "Guest workspace · add recovery when you are ready" : "Recovery, notifications and data controls"}
           >
           <p className="text-[11px] leading-5 text-[#8793a8]">
-            Salary, eligibility, evidence, saves, and decisions stay inside your JobSwipe workspace. Employers never receive this profile.
+            Salary, eligibility, evidence, saves, and decisions stay inside your RoleDex workspace. Employers never receive this profile.
           </p>
           <div className="mt-4 [&_[data-slot=button]]:text-[#d9dfeb] [&_p]:text-[#9da8bb] [&_[role=alert]]:text-[#ff9aaa]">
             <AccountDataControls

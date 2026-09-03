@@ -38,7 +38,7 @@ final class AppModel: ObservableObject {
 
     init() {
         let configured = Bundle.main.object(forInfoDictionaryKey: "JOBSWIPE_API_BASE_URL") as? String
-        let url = URL(string: configured ?? "https://jobswipe-amber.vercel.app/")!
+        let url = URL(string: configured ?? "https://roledex.vercel.app/")!
         publicBaseURL = url
         client = APIClient(baseURL: url)
         publicHost = url.host
@@ -178,7 +178,7 @@ final class AppModel: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("JobSwipe-export-\(formatter.string(from: Date())).json")
+            .appendingPathComponent("RoleDex-export-\(formatter.string(from: Date())).json")
         try data.write(to: url, options: [.atomic, .completeFileProtection])
         return url
     }

@@ -94,7 +94,7 @@ export function buildSpokenJobSummary(
     `Why it may fit: ${asSentence(match)}`,
     `Biggest qualification gap: ${asSentence(gap)}`,
     `Strongest reason to pass: ${asSentence(passReason)}`,
-    `JobSwipe verdict: ${job.verdict}. ${asSentence(job.verdictExplanation)}`,
+    `RoleDex verdict: ${job.verdict}. ${asSentence(job.verdictExplanation)}`,
     `Question for reflection: ${reflection}`,
   ].join(" ");
 

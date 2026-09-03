@@ -38,7 +38,7 @@ export function buildAppleAppSiteAssociation(input: {
           components: [
             {
               "/": "/jobs/*",
-              comment: "Open a JobSwipe job detail in the iPhone app.",
+              comment: "Open a RoleDex job detail in the iPhone app.",
             },
             {
               "/": "/saved",

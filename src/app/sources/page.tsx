@@ -30,7 +30,7 @@ export default async function JobSourcesPage() {
           <div>
             <h1 className="text-3xl font-semibold tracking-[-0.035em]">Job sources</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Manage the official company feeds JobSwipe checks for new roles. You can connect Greenhouse, Lever, and Ashby boards.
+              Manage the official company feeds RoleDex checks for new roles. You can connect Greenhouse, Lever, and Ashby boards.
             </p>
           </div>
           <RefillJobsButton status={status} />

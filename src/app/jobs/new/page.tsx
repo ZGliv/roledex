@@ -35,7 +35,7 @@ export default async function NewJobPage() {
           Add a job
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-          Enter the title and company, then paste the complete listing. JobSwipe only scores information present in the source text.
+          Enter the title and company, then paste the complete listing. RoleDex only scores information present in the source text.
         </p>
       </header>
 

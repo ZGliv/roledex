@@ -20,7 +20,7 @@ export function PwaRegistration() {
         });
       } catch (error) {
         if (!disposed) {
-          console.warn("JobSwipe could not enable its offline fallback.", error);
+          console.warn("RoleDex could not enable its offline fallback.", error);
         }
 
         return;
@@ -34,7 +34,7 @@ export function PwaRegistration() {
         await registration.update();
       } catch (error) {
         if (!disposed) {
-          console.warn("JobSwipe could not check for an offline fallback update.", error);
+          console.warn("RoleDex could not check for an offline fallback update.", error);
         }
       }
     };

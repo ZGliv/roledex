@@ -231,7 +231,7 @@ export function ResumeImportReview({
         <div className="border-b border-white/[0.08] pb-5">
           <p className="text-[13px] font-semibold text-[#eef2f7]">Import a résumé</p>
           <p className="mt-1 text-[11px] leading-5 text-[#8995a9]">
-            Choose your existing PDF, Word, or text résumé. JobSwipe proposes structured facts; nothing is added until you review and confirm it.
+            Choose your existing PDF, Word, or text résumé. RoleDex proposes structured facts; nothing is added until you review and confirm it.
           </p>
         </div>
         <div className="mt-4 space-y-3">

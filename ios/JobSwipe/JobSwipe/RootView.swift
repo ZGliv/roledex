@@ -18,10 +18,10 @@ struct RootView: View {
                 ProgressView()
                     .controlSize(.large)
                     .tint(.white)
-                    .accessibilityLabel("Loading JobSwipe")
+                    .accessibilityLabel("Loading RoleDex")
             case .failed(let message):
                 ContentUnavailableView {
-                    Label("JobSwipe is offline", systemImage: "wifi.exclamationmark")
+                    Label("RoleDex is offline", systemImage: "wifi.exclamationmark")
                 } description: {
                     Text(message)
                 } actions: {
@@ -56,7 +56,7 @@ struct RootView: View {
             NavigationStack { NativeJobDetailView(job: job) }
         }
         .alert(
-            "JobSwipe",
+            "RoleDex",
             isPresented: Binding(
                 get: { model.notice != nil },
                 set: { if !$0 { model.notice = nil } }
@@ -696,7 +696,7 @@ private struct ProfileView: View {
                     } header: {
                         Text("Use an existing workspace")
                     } footer: {
-                        Text("Generate a one-time code from JobSwipe on your other device. Codes expire after 10 minutes.")
+                        Text("Generate a one-time code from RoleDex on your other device. Codes expire after 10 minutes.")
                     }
 
                     Section("Your data") {

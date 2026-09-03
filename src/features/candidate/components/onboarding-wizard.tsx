@@ -1006,7 +1006,7 @@ export function OnboardingWizard({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6">
       <header className="flex min-h-11 items-center justify-between gap-4">
-        <p className="text-[12px] font-semibold text-[#e5e9f1]">JobSwipe setup</p>
+        <p className="text-[12px] font-semibold text-[#e5e9f1]">RoleDex setup</p>
         <button
           type="button"
           disabled={pending}
@@ -1409,7 +1409,7 @@ export function OnboardingWizard({
                 headingRef={stepHeadingRef}
                 icon={<BriefcaseBusiness className="size-5" aria-hidden="true" />}
                 title="Your feed has rules now"
-                description="JobSwipe will qualify first, rank second, and learn from your swipes without weakening your hard limits."
+                description="RoleDex will qualify first, rank second, and learn from your swipes without weakening your hard limits."
               />
               <div className="mt-7 divide-y divide-white/9 border-y border-white/9">
                 <div className="flex items-start gap-3 py-4">

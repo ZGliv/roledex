@@ -232,6 +232,6 @@ export function apiV2RouteError(request: Request, error: unknown) {
   if (error instanceof NativeWorkspaceConflictError) {
     return apiV2Error(request, 409, "workspace_claim_conflict", error.message);
   }
-  console.error("JobSwipe API v2 request failed.", error);
+  console.error("RoleDex API v2 request failed.", error);
   return apiV2Error(request, 500, "internal_error", "The request could not be completed.");
 }

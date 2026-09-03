@@ -40,7 +40,7 @@ export function AddSourceForm() {
       <div>
         <h2 className="font-semibold">Connect a company</h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          Paste a public Greenhouse, Lever, or Ashby board. JobSwipe verifies the official feed before saving it.
+          Paste a public Greenhouse, Lever, or Ashby board. RoleDex verifies the official feed before saving it.
         </p>
       </div>
 

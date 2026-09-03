@@ -151,7 +151,7 @@ type ApiErrorBody = { error?: { code?: string; message?: string } };
 function apiBase() {
   const configured = import.meta.env.VITE_JOBSWIPE_API_BASE_URL;
   const fallback = Capacitor.isNativePlatform()
-    ? "https://jobswipe-amber.vercel.app"
+    ? "https://roledex.vercel.app"
     : "http://localhost:3100";
   const url = new URL(configured || fallback);
   const localHttp =
@@ -159,7 +159,7 @@ function apiBase() {
     url.protocol === "http:" &&
     ["localhost", "127.0.0.1"].includes(url.hostname);
   if (url.protocol !== "https:" && !localHttp) {
-    throw new Error("JobSwipe API requests require HTTPS outside local preview.");
+    throw new Error("RoleDex API requests require HTTPS outside local preview.");
   }
   url.pathname = url.pathname.replace(/\/$/, "");
   url.search = "";

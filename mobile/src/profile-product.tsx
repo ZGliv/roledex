@@ -688,7 +688,7 @@ function AccountPanel({ onWorkspaceChanged }: { onWorkspaceChanged: () => void }
       const serialized = JSON.stringify(response.data, null, 2);
       const filename = `jobswipe-export-${new Date().toISOString().slice(0, 10)}.json`;
       if (Capacitor.isNativePlatform()) {
-        await Share.share({ title: "JobSwipe data export", text: serialized, dialogTitle: "Save your private export" });
+        await Share.share({ title: "RoleDex data export", text: serialized, dialogTitle: "Save your private export" });
       } else {
         const url = URL.createObjectURL(new Blob([serialized], { type: "application/json" }));
         const link = document.createElement("a");

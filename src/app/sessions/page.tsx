@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Research sessions",
-  description: "A focused history of recent JobSwipe research decisions.",
+  description: "A focused history of recent RoleDex research decisions.",
 };
 
 const VISIBLE_SESSION_LIMIT = 12;

@@ -40,6 +40,6 @@ export async function resetGuestWorkspaceAction(): Promise<ResetGuestWorkspaceAc
   revalidatePath("/", "layout");
   return {
     ok: true,
-    message: "Your JobSwipe profile, decisions, notes, and analyses were deleted.",
+    message: "Your RoleDex profile, decisions, notes, and analyses were deleted.",
   };
 }

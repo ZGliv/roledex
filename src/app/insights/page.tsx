@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Market insights",
-  description: "Evidence-based patterns across the active JobSwipe market sample.",
+  description: "Evidence-based patterns across the active RoleDex market sample.",
 };
 
 const fitBandStyles: Record<FitBandInsight["key"], string> = {
@@ -208,7 +208,7 @@ export default async function InsightsPage() {
             What the market keeps asking for.
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-[#696d74] sm:text-base">
-            Patterns across current listings, measured against the active candidate profile. Counts describe the data JobSwipe has—not the whole job market.
+            Patterns across current listings, measured against the active candidate profile. Counts describe the data RoleDex has—not the whole job market.
           </p>
           <p className="mt-2 text-xs text-[#656970]">
             Recalculated {formatAppDateTime(insights.generatedAt)}
@@ -437,7 +437,7 @@ export default async function InsightsPage() {
                 <ul className="mt-5 space-y-3 text-sm leading-6 text-[#5d6168]">
                   <li className="flex gap-3">
                     <span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-[#d63a52]" />
-                    “Active” means active in JobSwipe, not independently verified open today.
+                    “Active” means active in RoleDex, not independently verified open today.
                   </li>
                   <li className="flex gap-3">
                     <span className="mt-2.5 size-1.5 shrink-0 rounded-full bg-[#d63a52]" />

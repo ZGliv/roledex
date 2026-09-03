@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Driving mode",
-  description: "Free browser narration for a safely configured JobSwipe session.",
+  description: "Free browser narration for a safely configured RoleDex session.",
 };
 
 const DRIVING_BATCH_SIZE = 20;

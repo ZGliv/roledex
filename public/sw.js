@@ -19,7 +19,7 @@ const OFFLINE_DOCUMENT = `<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f5f6f8">
-  <title>Offline · JobSwipe</title>
+  <title>Offline · RoleDex</title>
   <style>
     :root { color-scheme: light; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
@@ -63,7 +63,7 @@ const OFFLINE_DOCUMENT = `<!doctype html>
       </svg>
     </div>
     <h1>You’re offline</h1>
-    <p>Reconnect to load JobSwipe. No jobs or personal details are stored in this offline page.</p>
+    <p>Reconnect to load RoleDex. No jobs or personal details are stored in this offline page.</p>
     <a href="/">Try again</a>
   </main>
 </body>

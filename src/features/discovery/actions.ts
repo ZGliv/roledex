@@ -187,7 +187,7 @@ export async function addJobSourceAction(
     message:
       validation.availableJobs > 0
         ? `${parsedFields.data.companyName} is connected to its live ${validation.provider} board.`
-        : `${parsedFields.data.companyName} is connected. Its board currently has no open roles, so JobSwipe will keep checking it.`,
+        : `${parsedFields.data.companyName} is connected. Its board currently has no open roles, so RoleDex will keep checking it.`,
   };
 }
 

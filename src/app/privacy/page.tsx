@@ -13,12 +13,12 @@ export default function PrivacyPage() {
 
         <div className="mt-10 space-y-8 text-sm leading-7">
           <section>
-            <h2 className="text-lg font-semibold text-white">What JobSwipe stores</h2>
-            <p className="mt-2">JobSwipe stores the profile details you enter, work and education evidence, saved résumé text, job decisions, notes, application plans, device-pairing records, notification preferences, and feedback you submit. Job listings and company information come from public employer job boards and public sources.</p>
+            <h2 className="text-lg font-semibold text-white">What RoleDex stores</h2>
+            <p className="mt-2">RoleDex stores the profile details you enter, work and education evidence, saved résumé text, job decisions, notes, application plans, device-pairing records, notification preferences, and feedback you submit. Job listings and company information come from public employer job boards and public sources.</p>
           </section>
           <section>
             <h2 className="text-lg font-semibold text-white">How it is used</h2>
-            <p className="mt-2">Your information is used to filter and rank jobs, keep your workspace synchronized, show your application history, deliver reminders you enable, and improve the beta. JobSwipe does not sell your personal information or send your private profile to employers.</p>
+            <p className="mt-2">Your information is used to filter and rank jobs, keep your workspace synchronized, show your application history, deliver reminders you enable, and improve the beta. RoleDex does not sell your personal information or send your private profile to employers.</p>
           </section>
           <section>
             <h2 className="text-lg font-semibold text-white">Service providers</h2>
@@ -30,11 +30,11 @@ export default function PrivacyPage() {
           </section>
           <section>
             <h2 className="text-lg font-semibold text-white">Your choices</h2>
-            <p className="mt-2">You can turn reminders off, export your workspace as JSON, delete stored résumé evidence individually, or delete the guest workspace. Privacy and data requests can be sent through the <Link href="/support" className="text-[#aaa3ff]">JobSwipe support form</Link>.</p>
+            <p className="mt-2">You can turn reminders off, export your workspace as JSON, delete stored résumé evidence individually, or delete the guest workspace. Privacy and data requests can be sent through the <Link href="/support" className="text-[#aaa3ff]">RoleDex support form</Link>.</p>
           </section>
           <section>
             <h2 className="text-lg font-semibold text-white">Important limitation</h2>
-            <p className="mt-2">JobSwipe provides job-discovery and organizational tools, not employment, legal, immigration, or financial advice. Fit scores are evidence-based profile comparisons, not predictions that an employer will interview or hire you.</p>
+            <p className="mt-2">RoleDex provides job-discovery and organizational tools, not employment, legal, immigration, or financial advice. Fit scores are evidence-based profile comparisons, not predictions that an employer will interview or hire you.</p>
           </section>
         </div>
         <p className="mt-12 border-t border-white/10 pt-6 text-xs text-[#778399]">

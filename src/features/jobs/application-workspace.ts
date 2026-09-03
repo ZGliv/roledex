@@ -204,7 +204,7 @@ export function calendarFileForApplication(input: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//JobSwipe//Application Planner//EN",
+    "PRODID:-//RoleDex//Application Planner//EN",
     "BEGIN:VEVENT",
     `UID:${crypto.randomUUID()}@jobswipe`,
     `DTSTAMP:${stamp(Date.now())}`,

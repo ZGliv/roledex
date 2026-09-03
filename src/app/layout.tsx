@@ -29,11 +29,11 @@ const bricolage = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   title: {
-    default: "JobSwipe",
-    template: "%s · JobSwipe",
+    default: "RoleDex",
+    template: "%s · RoleDex",
   },
   description: "A simpler way to discover, compare, and save jobs that fit.",
-  applicationName: "JobSwipe",
+  applicationName: "RoleDex",
   icons: {
     icon: [{ url: "/icons/v5/32", sizes: "32x32", type: "image/png" }],
     apple: [{ url: "/icons/v5/apple", sizes: "180x180", type: "image/png" }],
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black",
-    title: "JobSwipe",
+    title: "RoleDex",
   },
   robots: {
     index: false,

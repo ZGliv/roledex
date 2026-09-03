@@ -105,7 +105,7 @@ export function completedDiscoveryRefreshMessage(input: {
   const rotation =
     (input.queuedSources ?? 0) > 0
       ? " The source rotation will keep checking more companies."
-      : " JobSwipe will keep revisiting the network as companies publish roles.";
+      : " RoleDex will keep revisiting the network as companies publish roles.";
 
   if (input.status === "partial") {
     const warnings = [
