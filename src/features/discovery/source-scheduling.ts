@@ -34,9 +34,9 @@ export function nextSourceAttemptAt(source: SchedulableJobSource) {
 }
 
 /**
- * Picks the oldest-due sources first. Once a source is attempted its next due
- * time moves forward, so repeated bounded runs naturally rotate through the
- * full source network without a global cursor or a permanently favored board.
+ * Picks the newest never-attempted sources first, then the oldest-due sources.
+ * This makes a newly connected board useful on the next run; after its first
+ * attempt the normal bounded rotation resumes without a global cursor.
  */
 export function selectDueJobSources<T extends SchedulableJobSource>(
   sources: readonly T[],
@@ -51,10 +51,24 @@ export function selectDueJobSources<T extends SchedulableJobSource>(
         entry.dueAt !== null && entry.dueAt.getTime() <= now.getTime(),
     )
     .toSorted(
-      (left, right) =>
-        left.dueAt.getTime() - right.dueAt.getTime() ||
-        left.source.createdAt.getTime() - right.source.createdAt.getTime() ||
-        left.index - right.index,
+      (left, right) => {
+        const leftAttempted = left.source.lastAttemptedAt !== null;
+        const rightAttempted = right.source.lastAttemptedAt !== null;
+        if (leftAttempted !== rightAttempted) {
+          return Number(leftAttempted) - Number(rightAttempted);
+        }
+        if (!leftAttempted && !rightAttempted) {
+          return (
+            right.source.createdAt.getTime() - left.source.createdAt.getTime() ||
+            left.index - right.index
+          );
+        }
+        return (
+          left.dueAt.getTime() - right.dueAt.getTime() ||
+          left.source.createdAt.getTime() - right.source.createdAt.getTime() ||
+          left.index - right.index
+        );
+      },
     )
     .slice(0, boundedLimit)
     .map((entry) => entry.source);

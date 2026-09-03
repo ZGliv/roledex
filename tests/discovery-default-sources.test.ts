@@ -13,4 +13,24 @@ describe("default live source network", () => {
       new Set(["greenhouse", "lever", "ashby"]),
     );
   });
+
+  it("includes the targeted public implementation-role source set", () => {
+    const identities = new Set(
+      DEFAULT_JOB_SOURCES.map(
+        (source) => `${source.provider}:${source.providerKey}`,
+      ),
+    );
+
+    expect([...identities]).toEqual(
+      expect.arrayContaining([
+        "lever:workwave",
+        "lever:aledade",
+        "ashby:ashby",
+        "ashby:govworx",
+        "ashby:aurelian",
+        "ashby:hellopatient",
+        "ashby:raspberry",
+      ]),
+    );
+  });
 });

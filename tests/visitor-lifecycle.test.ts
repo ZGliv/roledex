@@ -126,6 +126,7 @@ describe.sequential("guest visitor lifecycle", () => {
       jobId,
       decision: "saved",
       expectedDecision: "unseen",
+      expectedDecisionEventId: null,
       note: "A promising role",
     });
     await db.insert(analysisRuns).values({

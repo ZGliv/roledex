@@ -4,6 +4,7 @@ import { and, count, eq, gte } from "drizzle-orm";
 
 import { db, ensureDatabaseReady } from "@/db/client";
 import { candidateProfiles, visitors } from "@/db/schema";
+import { withDatabaseWriteRetry } from "@/db/write-retry";
 import { OWNER_VISITOR_ID } from "@/features/auth/identity";
 
 export const GUEST_WORKSPACE_HOURLY_ADMISSION_LIMIT = 30;
@@ -46,7 +47,7 @@ export async function admitVisitorWorkspace(
   const dailyWindowStart = new Date(
     now.getTime() - GUEST_WORKSPACE_DAILY_ADMISSION_WINDOW_MS,
   );
-  const admitted = await db.transaction(async (transaction) => {
+  const admitted = await withDatabaseWriteRetry(() => db.transaction(async (transaction) => {
     const [visitor] = await transaction
       .select({ createdAt: visitors.createdAt, kind: visitors.kind })
       .from(visitors)
@@ -89,7 +90,7 @@ export async function admitVisitorWorkspace(
 
     await transaction.delete(visitors).where(eq(visitors.id, visitorId));
     return false;
-  });
+  }));
 
   if (!admitted) throw new GuestWorkspaceCapacityError();
 }

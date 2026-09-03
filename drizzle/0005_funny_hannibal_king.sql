@@ -1,0 +1,1 @@
+ALTER TABLE `visitor_job_states` ADD `current_decision_event_id` text;

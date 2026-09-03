@@ -5,6 +5,7 @@ export type DrivingJob = Pick<
   JobCardViewModel,
   | "company"
   | "currentDecision"
+  | "currentDecisionEventId"
   | "deterministicFitCoverage"
   | "deterministicFitScore"
   | "id"

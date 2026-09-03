@@ -4,6 +4,10 @@
 .git
 .playwright-cli
 data
+docs
+grok-bot-setup
+ios
+mobile
 output
 tests
 AGENTS.md
@@ -11,6 +15,10 @@ CLAUDE.md
 ARCHITECTURE.md
 PROJECT_PLAN.md
 TASKS.md
+APPLY_SHORTLIST_*.md
+CLAUDE_JOB_SEARCH_*.md
+MASTER_EVIDENCE_INVENTORY.md
+capacitor.config.ts
 *.log
 public/visuals/glass-atmosphere-v1.png
 public/visuals/obsidian-liquid-glass-v1.png

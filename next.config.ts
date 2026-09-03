@@ -7,6 +7,11 @@ const allowedDevOrigins = process.env.JOBSWIPE_DEV_ORIGINS
 
 const nextConfig: NextConfig = {
   allowedDevOrigins,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "6mb",
+    },
+  },
   async headers() {
     return [
       {

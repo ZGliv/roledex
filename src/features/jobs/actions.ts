@@ -4,15 +4,22 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { jobDecisionValues, type JobDecision } from "@/db/schema";
+import {
+  jobDecisionValues,
+  type JobDecision,
+  type JobDecisionReason,
+} from "@/db/schema";
 import { requireOwnerSession } from "@/features/auth/session";
 import { requireVisitorId } from "@/features/auth/visitor";
-import { getActiveCandidateProfileForVisitor } from "@/features/candidate/queries";
-import { ensureCurrentFitScoresForProfile } from "@/features/candidate/scoring";
-import type { DeckDecision } from "@/features/decisions/policy";
+import { getActiveCandidateContextForVisitor } from "@/features/candidate/queries";
+import {
+  deckDecisionValues,
+  type DeckDecision,
+} from "@/features/decisions/policy";
 import {
   GuestActivityWriteRateLimitError,
   recordJobDecisionForVisitor,
+  recordJobDecisionReasonsForVisitor,
   recordJobNoteForVisitor,
 } from "@/features/decisions/service";
 import {
@@ -23,8 +30,12 @@ import {
   refreshDiscoveryJobs,
   type DiscoveryRefreshResult,
 } from "@/features/discovery/service";
+import { buildDiscoveryCandidateProfile } from "@/features/discovery/relevance";
 import { ManualJobInputSchema } from "@/features/jobs/input";
-import { getDeckJobCardsPage } from "@/features/jobs/queries";
+import {
+  getDeckJobCardsPage,
+  type DeckFeedLane,
+} from "@/features/jobs/queries";
 import { createManualJob } from "@/features/jobs/service";
 
 export type JobEntryActionState = {
@@ -90,8 +101,10 @@ async function runJobMutation<T>(
 
 const DeckPageRequestSchema = z.object({
   cursor: z.string().max(1_000).nullable().optional(),
+  lane: z.enum(["matches", "explore"]).optional(),
   limit: z.number().int().min(1).max(50).optional(),
 });
+const DeckDecisionSchema = z.enum(deckDecisionValues);
 
 const DECK_REPLENISHMENT_THRESHOLD = 7;
 const COMPLETED_REFRESH_RECHECK_BUFFER_MS = 5_000;
@@ -130,7 +143,7 @@ function replenishmentState(
 ): DeckReplenishmentState {
   if (availableJobs > 0) {
     return {
-      message: "New matches are ready.",
+      message: "New roles are ready.",
       nextCheckAt: nextReplenishmentCheckAt(result, now),
       status: "available",
     };
@@ -155,8 +168,12 @@ function deckPagePayload(
   replenishment: DeckReplenishmentState,
 ) {
   return {
+    admissionCounts: page.admissionCounts,
     hasMore: page.hasMore,
     jobs: page.jobs,
+    lane: page.lane,
+    mode: page.mode,
+    nearMatchCount: page.nearMatchCount,
     nextCursor: page.nextCursor,
     replenishment,
   };
@@ -164,6 +181,7 @@ function deckPagePayload(
 
 export async function loadMoreDeckJobsAction(input: {
   cursor?: string | null;
+  lane?: DeckFeedLane;
   limit?: number;
 }) {
   await requireVisitorId();
@@ -175,29 +193,37 @@ export async function loadMoreDeckJobsAction(input: {
  * leased and rate-limited inside refreshDiscoveryJobs, so many empty visitors
  * cannot fan out into duplicate source scans.
  */
-export async function replenishDeckJobsAction(input: { limit?: number }) {
+export async function replenishDeckJobsAction(input: {
+  lane?: DeckFeedLane;
+  limit?: number;
+}) {
   const visitorId = await requireVisitorId();
   const request = DeckPageRequestSchema.parse({
     cursor: null,
+    lane: input.lane,
     limit: input.limit,
   });
   const existingPage = await getDeckJobCardsPage(request);
 
   if (existingPage.totalAvailable > DECK_REPLENISHMENT_THRESHOLD) {
     return deckPagePayload(existingPage, {
-      message: "Matches are ready.",
+      message: "Your feed is ready.",
       nextCheckAt: null,
       status: "available",
     });
   }
 
   try {
-    const refreshResult = await refreshDiscoveryJobs("on_demand");
-    // The active profile lookup is cached within a server request. Explicitly
-    // fill scores again after ingestion so jobs created by this refresh can be
-    // returned to this visitor immediately instead of waiting for navigation.
-    const profile = await getActiveCandidateProfileForVisitor(visitorId);
-    await ensureCurrentFitScoresForProfile(profile);
+    const { profile } = await getActiveCandidateContextForVisitor(
+      visitorId,
+      false,
+    );
+    const refreshResult = await refreshDiscoveryJobs("on_demand", {
+      focus: buildDiscoveryCandidateProfile(profile),
+    });
+    // The refreshed deck performs one bounded interactive score repair. Avoid
+    // the old ten-batch catalog sweep here: low-inventory checks can run many
+    // times per day and must not turn into a quota-consuming background job.
     const refreshedPage = await getDeckJobCardsPage(request);
     return deckPagePayload(
       refreshedPage,
@@ -224,14 +250,20 @@ export async function decideJobAction(
   jobId: string,
   decision: DeckDecision,
   expectedDecision: JobDecision,
+  expectedDecisionEventId: string | null,
+  reasonCodes: readonly JobDecisionReason[] = [],
 ) {
   const visitorId = await requireVisitorId();
   const expected = ExpectedDecisionSchema.parse(expectedDecision);
+  const expectedEventId = z.string().uuid().nullable().parse(expectedDecisionEventId);
+  const parsedDecision = DeckDecisionSchema.parse(decision);
   const result = await runJobMutation(() =>
     recordJobDecisionForVisitor(visitorId, {
       jobId,
-      decision,
+      decision: parsedDecision,
       expectedDecision: expected,
+      expectedDecisionEventId: expectedEventId,
+      reasonCodes: [...reasonCodes],
     }),
   );
   if (!result.ok) return result;
@@ -243,17 +275,42 @@ export async function decideJobAction(
   return result;
 }
 
-export async function restoreJobToDeckAction(
+export async function annotateJobDecisionReasonsAction(
   jobId: string,
   expectedDecision: JobDecision,
+  expectedDecisionEventId: string,
+  reasonCodes: readonly JobDecisionReason[],
 ) {
   const visitorId = await requireVisitorId();
   const expected = ExpectedDecisionSchema.parse(expectedDecision);
+  const result = await runJobMutation(() =>
+    recordJobDecisionReasonsForVisitor(visitorId, {
+      jobId,
+      expectedDecision: expected,
+      expectedDecisionEventId,
+      reasonCodes: [...reasonCodes],
+    }),
+  );
+  if (!result.ok) return result;
+  revalidatePath("/saved");
+  revalidatePath(`/jobs/${jobId}`);
+  return result;
+}
+
+export async function restoreJobToDeckAction(
+  jobId: string,
+  expectedDecision: JobDecision,
+  expectedDecisionEventId: string | null,
+) {
+  const visitorId = await requireVisitorId();
+  const expected = ExpectedDecisionSchema.parse(expectedDecision);
+  const expectedEventId = z.string().uuid().nullable().parse(expectedDecisionEventId);
   const result = await runJobMutation(() =>
     recordJobDecisionForVisitor(visitorId, {
       jobId,
       decision: "unseen",
       expectedDecision: expected,
+      expectedDecisionEventId: expectedEventId,
     }),
   );
   if (!result.ok) return result;
@@ -279,20 +336,23 @@ export async function updateJobStatusAction(
   jobId: string,
   status: string,
   expectedDecision: JobDecision,
+  expectedDecisionEventId: string | null,
 ) {
   const visitorId = await requireVisitorId();
   const input = z
     .object({
       expectedDecision: ExpectedDecisionSchema,
+      expectedDecisionEventId: z.string().uuid().nullable(),
       jobId: z.string().uuid(),
       status: PipelineStatusSchema,
     })
-    .parse({ expectedDecision, jobId, status });
+    .parse({ expectedDecision, expectedDecisionEventId, jobId, status });
   const result = await runJobMutation(() =>
     recordJobDecisionForVisitor(visitorId, {
       jobId: input.jobId,
       decision: input.status,
       expectedDecision: input.expectedDecision,
+      expectedDecisionEventId: input.expectedDecisionEventId,
     }),
   );
   if (!result.ok) return result;

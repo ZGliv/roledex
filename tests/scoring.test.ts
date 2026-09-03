@@ -188,6 +188,66 @@ Responsibilities
     expect(job.salary.maximumCents).toBeNull();
   });
 
+  it("treats legacy selected work modes as a set instead of an accidental ranking", () => {
+    const remoteJob = parseJobListing({
+      title: "Implementation Specialist",
+      company: "Remote Co",
+      descriptionRaw:
+        "This is a fully remote role helping customers configure workflows.",
+    });
+    const hybridJob = parseJobListing({
+      title: "Implementation Specialist",
+      company: "Hybrid Co",
+      location: "Pittsburgh, PA",
+      descriptionRaw:
+        "This is a hybrid role helping customers configure workflows from our Pittsburgh office.",
+    });
+    const candidate: CandidateFitProfile = {
+      ...baseCandidate,
+      preferredWorkArrangements: ["remote", "hybrid"],
+    };
+
+    const remote = scoreJob({
+      job: remoteJob,
+      candidate,
+      portfolioProjects: portfolio,
+    }).components.find((component) => component.key === "workArrangement");
+    const hybrid = scoreJob({
+      job: hybridJob,
+      candidate,
+      portfolioProjects: portfolio,
+    }).components.find((component) => component.key === "workArrangement");
+
+    expect(remote).toMatchObject({ rawScore: 100, coverage: 1 });
+    expect(hybrid).toMatchObject({ rawScore: 100, coverage: 1 });
+    expect(hybrid?.evidence[0]?.message).toBe(
+      "Hybrid is one of the configured preferred arrangements.",
+    );
+  });
+
+  it("keeps an empty legacy work-mode selection neutral", () => {
+    const job = parseJobListing({
+      title: "Implementation Specialist",
+      company: "Acme",
+      descriptionRaw:
+        "This is a fully remote role helping customers configure workflows.",
+    });
+    const result = scoreJob({
+      job,
+      candidate: { ...baseCandidate, preferredWorkArrangements: [] },
+      portfolioProjects: portfolio,
+    });
+    const work = result.components.find(
+      (component) => component.key === "workArrangement",
+    );
+
+    expect(work).toMatchObject({
+      rawScore: null,
+      coverage: 0,
+      effectiveScore: 50,
+    });
+  });
+
   it("treats an incompatible remote restriction as a separate eligibility failure", () => {
     const job = parseJobListing({
       title: "Implementation Specialist",
@@ -222,6 +282,62 @@ Responsibilities
 
     expect(result.eligibility.status).toBe("unresolved");
     expect(result.verdict).not.toBe("strong_apply");
+  });
+
+  it("blocks an explicit no-sponsorship listing when sponsorship is required", () => {
+    const job = parseJobListing({
+      title: "Implementation Specialist",
+      company: "Acme",
+      descriptionRaw:
+        "Candidates must be authorized to work in the United States. No visa sponsorship is available. Help customers configure software.",
+    });
+    const result = scoreJob({
+      job,
+      candidate: {
+        ...baseCandidate,
+        requiresSponsorship: true,
+        workAuthorizationCountries: ["United States"],
+      },
+      portfolioProjects: portfolio,
+    });
+
+    expect(result.eligibility.status).toBe("ineligible");
+    expect(result.eligibility.reasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "blocker",
+          message:
+            "The listing explicitly rules out sponsorship, but the profile requires it.",
+        }),
+      ]),
+    );
+  });
+
+  it("enforces a structured maximum travel limit", () => {
+    const job = parseJobListing({
+      title: "Implementation Specialist",
+      company: "Acme",
+      descriptionRaw:
+        "This role requires up to 50% travel to customer sites and helps customers configure software.",
+    });
+    const result = scoreJob({
+      job,
+      candidate: {
+        ...baseCandidate,
+        dealBreakers: { maximumTravelPercent: 20 },
+      },
+      portfolioProjects: portfolio,
+    });
+
+    expect(result.eligibility.status).toBe("ineligible");
+    expect(result.eligibility.reasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "blocker",
+          message: "Travel of 50% exceeds the 20% limit.",
+        }),
+      ]),
+    );
   });
 
   it("never converts portfolio work into professional experience years", () => {

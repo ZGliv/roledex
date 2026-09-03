@@ -5,10 +5,12 @@ import { closeDatabase, db, ensureDatabaseReady } from "./client";
 import { migrateDatabase } from "./migrate";
 import {
   candidateProfiles,
+  candidateRoleTargets,
   jobSources,
   portfolioProjects,
   visitors,
 } from "./schema";
+import { OWNER_ROLE_TARGETS } from "../features/candidate/search-contract-defaults";
 import { DEFAULT_JOB_SOURCES } from "../features/discovery/default-sources";
 import { OWNER_VISITOR_ID } from "../features/auth/identity";
 
@@ -29,22 +31,15 @@ const candidateProfileSeed = {
     "Emerging technology",
   ],
   targetRoleFamilies: [
-    "AI implementation specialist",
-    "AI solutions consultant",
-    "Junior solutions engineer",
+    "Implementation specialist / analyst",
+    "Health-tech implementation",
+    "AI enablement / operations",
+    "Product operations",
     "Technical customer success",
-    "AI operations analyst",
-    "Automation specialist",
-    "AI business analyst",
-    "Product analyst",
-    "Associate product manager",
-    "Product operations analyst",
-    "Innovation analyst",
-    "Digital transformation analyst",
-    "Applied AI analyst",
-    "AI enablement specialist",
-    "Healthcare technology analyst",
-    "Health-tech implementation specialist",
+    "Business systems / automation analyst",
+    "Associate solutions consultant / engineer",
+    "Associate product roles",
+    "Technical product specialist",
   ],
   strengths: [
     "Uses AI coding tools effectively",
@@ -111,6 +106,26 @@ const candidateProfileSeed = {
     "Technical support",
   ],
   yearsExperience: 1,
+  desiredSeniorityLevels: ["entry", "mid"] as const,
+  excludedTitles: [
+    "Senior",
+    "Staff",
+    "Principal",
+    "Manager",
+    "Director",
+    "Software Engineer",
+    "Machine Learning Engineer",
+    "Help Desk",
+    "Desktop Support",
+    "Account Executive",
+  ],
+  preferredWorkModes: ["remote", "hybrid", "on_site"] as const,
+  acceptedEmploymentTypes: ["full_time"] as const,
+  strictWorkModes: false,
+  commuteRadiusMiles: 35,
+  maxOfficeDaysPerWeek: 3,
+  maxTravelPercent: 25,
+  missingSalaryPolicy: "hide" as const,
   location: "Pittsburgh, PA",
   relocationPreference: "Prefer remote; consider realistic hybrid roles",
   careerGoals: [
@@ -132,6 +147,12 @@ const candidateProfileSeed = {
     "Senior engineering requirements disguised as entry level",
   ],
 } satisfies typeof candidateProfiles.$inferInsert;
+
+const candidateRoleTargetSeeds = OWNER_ROLE_TARGETS.map((target) => ({
+  ...target,
+  id: `owner-role-${target.priorityRank}`,
+  candidateProfileId: DEFAULT_CANDIDATE_PROFILE_ID,
+})) satisfies (typeof candidateRoleTargets.$inferInsert)[];
 
 const portfolioProjectSeeds = [
   {
@@ -237,6 +258,11 @@ export async function seedDatabase(): Promise<void> {
     await transaction
       .insert(candidateProfiles)
       .values(candidateProfileSeed)
+      .onConflictDoNothing();
+
+    await transaction
+      .insert(candidateRoleTargets)
+      .values(candidateRoleTargetSeeds)
       .onConflictDoNothing();
 
     await transaction

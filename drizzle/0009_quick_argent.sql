@@ -1,0 +1,1 @@
+CREATE INDEX `fit_score_runs_live_profile_idx` ON `fit_score_runs` (`candidate_profile_id`,`scoring_version`,`job_revision_id`,`created_at`);

@@ -14,8 +14,10 @@ import {
   type JobSource,
 } from "@/db/schema";
 import { DEFAULT_JOB_SOURCES } from "@/features/discovery/default-sources";
+import { selectDiverseDiscoveryCandidates } from "@/features/discovery/candidate-selection";
 import { DiscoveryProviderError } from "@/features/discovery/providers";
 import {
+  type DiscoveryCandidateProfile,
   isDiscoveryImportCandidate,
   scoreDiscoveryImportPriority,
 } from "@/features/discovery/relevance";
@@ -203,32 +205,6 @@ function toEmploymentType(value: DiscoveryEmploymentType) {
   return value === "unknown" ? null : value;
 }
 
-function selectDiverseCandidates(
-  candidates: CandidateJob[],
-  limit = MAX_IMPORTS_PER_RUN,
-) {
-  const groups = new Map<string, CandidateJob[]>();
-  for (const candidate of candidates.toSorted((left, right) => right.score - left.score)) {
-    const existing = groups.get(candidate.source.id) ?? [];
-    existing.push(candidate);
-    groups.set(candidate.source.id, existing);
-  }
-
-  const selected: CandidateJob[] = [];
-  while (selected.length < limit) {
-    let added = false;
-    for (const group of groups.values()) {
-      const candidate = group.shift();
-      if (!candidate) continue;
-      selected.push(candidate);
-      added = true;
-      if (selected.length === limit) break;
-    }
-    if (!added) break;
-  }
-  return selected;
-}
-
 function deferredResult(
   kind: DiscoveryRefreshDeferred["kind"],
   retryAt: Date,
@@ -333,7 +309,10 @@ function completedResult(input: {
 
 export async function refreshDiscoveryJobs(
   trigger: IngestionRunTrigger = "on_demand",
-  options: { force?: boolean } = {},
+  options: {
+    focus?: DiscoveryCandidateProfile | null;
+    force?: boolean;
+  } = {},
 ): Promise<DiscoveryRefreshResult> {
   await ensureDatabaseReady();
   const now = new Date();
@@ -502,7 +481,7 @@ export async function refreshDiscoveryJobs(
         .map((job) => ({
           contentHash: jobContentHash(job),
           job,
-          score: scoreDiscoveryImportPriority(job),
+          score: scoreDiscoveryImportPriority(job, options.focus),
           source,
         })),
     );
@@ -673,16 +652,13 @@ export async function refreshDiscoveryJobs(
       }
     }
 
-    // Re-run parsing/scoring upgrades for already-imported jobs before using
-    // the bounded budget on brand-new candidates.
-    const selectedExisting = selectDiverseCandidates(pendingExisting);
-    const selected = [
-      ...selectedExisting,
-      ...selectDiverseCandidates(
-        pendingNew,
-        MAX_IMPORTS_PER_RUN - selectedExisting.length,
-      ),
-    ];
+    // Existing revisions and new listings compete on the same relevance
+    // budget. This prevents a parser/scoring version bump from consuming every
+    // slot before a newly connected board can contribute better-fit roles.
+    const selected = selectDiverseDiscoveryCandidates(
+      [...pendingExisting, ...pendingNew],
+      MAX_IMPORTS_PER_RUN,
+    );
     progress.filteredJobCount = Math.max(
       0,
       progress.fetchedJobCount - unchanged.length - selected.length,

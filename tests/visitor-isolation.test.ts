@@ -115,6 +115,7 @@ describe("visitor data isolation", () => {
       jobId,
       decision: "saved",
       expectedDecision: "unseen",
+      expectedDecisionEventId: null,
     });
     await updateCandidateProfileAndRescoreForVisitor(visitorA, {
       expectedRevision: profileA.revision,
@@ -167,6 +168,8 @@ describe("visitor data isolation", () => {
     expect(stateA.currentDecision).toBe("saved");
     expect(stateB).toBeUndefined();
     expect(updatedA.currentRole).toBe("Customer Success Specialist");
+    expect(updatedA.preferredWorkArrangements).toEqual(["remote"]);
+    expect(updatedA.preferredWorkModes).toEqual(["remote"]);
     expect(unchangedB.currentRole).toBe("Exploring new opportunities");
     expect(unchangedB.revision).toBe(profileB.revision);
   });
@@ -182,6 +185,7 @@ describe("visitor data isolation", () => {
       jobId,
       decision: "skipped",
       expectedDecision: "unseen",
+      expectedDecisionEventId: null,
     });
     const [[updatedA], [updatedB], [updatedC]] = await Promise.all([
       db
@@ -342,5 +346,147 @@ describe("visitor data isolation", () => {
     ]);
     expect(targetScore).toHaveLength(1);
     expect(fillerScores).toHaveLength(0);
+  });
+
+  it("advances across bounded batches until every active unseen job is covered", async () => {
+    const { ensureCurrentFitScoresForProfile } = await import(
+      "@/features/candidate/scoring"
+    );
+    const targetListingId = randomUUID();
+    const targetRevisionId = randomUUID();
+    const filler = Array.from({ length: 100 }, (_, index) => ({
+      listingId: randomUUID(),
+      revisionId: randomUUID(),
+      index,
+    }));
+
+    await db.transaction(async (transaction) => {
+      await transaction.insert(jobListings).values([
+        {
+          id: targetListingId,
+          normalizedTitle: "old coverage target",
+          normalizedCompany: "coverage test",
+          createdAt: new Date(2_000),
+          updatedAt: new Date(2_000),
+        },
+        ...filler.map(({ listingId, index }) => ({
+          id: listingId,
+          normalizedTitle: `new coverage role ${index}`,
+          normalizedCompany: "coverage test",
+          createdAt: new Date(20_000 + index),
+          updatedAt: new Date(20_000 + index),
+        })),
+      ]);
+      await transaction.insert(jobRevisions).values([
+        {
+          id: targetRevisionId,
+          jobListingId: targetListingId,
+          sourceType: "manual_paste",
+          rawDescription:
+            "Coordinate customer implementations for $90,000 per year.",
+          contentHash: "coverage-target",
+          parserVersion: "test",
+          parseSchemaVersion: "test",
+          title: "Old coverage target",
+          company: "Coverage Test",
+          location: "Remote",
+        },
+        ...filler.map(({ listingId, revisionId, index }) => ({
+          id: revisionId,
+          jobListingId: listingId,
+          sourceType: "manual_paste" as const,
+          rawDescription:
+            "Coordinate customer implementations for $90,000 per year.",
+          contentHash: `coverage-filler-${index}`,
+          parserVersion: "test",
+          parseSchemaVersion: "test",
+          title: `New coverage role ${index}`,
+          company: "Coverage Test",
+          location: "Remote",
+        })),
+      ]);
+      await transaction
+        .update(jobListings)
+        .set({ currentRevisionId: targetRevisionId })
+        .where(eq(jobListings.id, targetListingId));
+      for (const { listingId, revisionId } of filler) {
+        await transaction
+          .update(jobListings)
+          .set({ currentRevisionId: revisionId })
+          .where(eq(jobListings.id, listingId));
+      }
+    });
+
+    const first = await ensureCurrentFitScoresForProfile(profileC, {
+      maxBatches: 1,
+    });
+    const targetAfterFirstBatch = await db
+      .select({ id: fitScoreRuns.id })
+      .from(fitScoreRuns)
+      .where(
+        and(
+          eq(fitScoreRuns.candidateProfileId, profileC.id),
+          eq(fitScoreRuns.jobRevisionId, targetRevisionId),
+        ),
+      );
+    expect(first).toEqual({
+      complete: false,
+      pendingPersistedJobs: 0,
+      pendingUnseenJobs: 1,
+      scoredJobs: 100,
+    });
+    expect(targetAfterFirstBatch).toHaveLength(0);
+
+    const second = await ensureCurrentFitScoresForProfile(profileC, {
+      maxBatches: 1,
+    });
+    const allCoverageScores = await db
+      .select({ jobRevisionId: fitScoreRuns.jobRevisionId })
+      .from(fitScoreRuns)
+      .where(
+        and(
+          eq(fitScoreRuns.candidateProfileId, profileC.id),
+          inArray(fitScoreRuns.jobRevisionId, [
+            targetRevisionId,
+            ...filler.map(({ revisionId }) => revisionId),
+          ]),
+        ),
+      );
+    expect(second).toEqual({
+      complete: true,
+      pendingPersistedJobs: 0,
+      pendingUnseenJobs: 0,
+      scoredJobs: 1,
+    });
+    expect(allCoverageScores).toHaveLength(101);
+
+    await expect(
+      ensureCurrentFitScoresForProfile(profileC, { maxBatches: 1 }),
+    ).resolves.toEqual({
+      complete: true,
+      pendingPersistedJobs: 0,
+      pendingUnseenJobs: 0,
+      scoredJobs: 0,
+    });
+
+    await db
+      .delete(fitScoreRuns)
+      .where(
+        and(
+          eq(fitScoreRuns.candidateProfileId, profileC.id),
+          inArray(fitScoreRuns.jobRevisionId, [
+            targetRevisionId,
+            ...filler.map(({ revisionId }) => revisionId),
+          ]),
+        ),
+      );
+    await expect(
+      ensureCurrentFitScoresForProfile(profileC),
+    ).resolves.toEqual({
+      complete: true,
+      pendingPersistedJobs: 0,
+      pendingUnseenJobs: 0,
+      scoredJobs: 101,
+    });
   });
 });

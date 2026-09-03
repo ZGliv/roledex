@@ -13,9 +13,11 @@ import {
   Check,
   ChevronDown,
   Copy,
+  Flag,
   Heart,
   LoaderCircle,
   RefreshCw,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -28,13 +30,16 @@ import type {
   JobDossierPayload,
 } from "@/features/jobs/dossier";
 import { humanizeEvidence } from "@/features/jobs/humanize-evidence";
+import type { EnrichedJobCardViewModel } from "@/features/jobs/queries";
 import { cn } from "@/lib/utils";
+import { submitBetaFeedbackAction } from "@/features/product/actions";
 
 import { CompanyMark } from "./company-mark";
 import { companyVisual } from "./company-visual";
 
 type JobDetailsDialogProps = {
-  job: JobCardViewModel;
+  job: EnrichedJobCardViewModel;
+  nearMatchExplanation?: string | null;
   onDecision: (decision: DeckDecision | "apply") => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -455,6 +460,7 @@ function CompanySection({
 
 export const JobDetailsDialog = memo(function JobDetailsDialog({
   job,
+  nearMatchExplanation = null,
   onDecision,
   onOpenChange,
   open,
@@ -467,6 +473,7 @@ export const JobDetailsDialog = memo(function JobDetailsDialog({
     useState<RequestState<JobCompanyPayload> | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
   const [copiedJobId, setCopiedJobId] = useState(null as string | null);
+  const [reportState, setReportState] = useState<"idle" | "sending" | "sent">("idle");
   const visual = companyVisual(job.company);
   const template = jobCardTemplateForCompany(job.company);
   const workLabel =
@@ -502,16 +509,26 @@ export const JobDetailsDialog = memo(function JobDetailsDialog({
     .slice(0, 3)
     .map(humanizeEvidence);
   const listingCopied = copiedJobId === job.id;
+  const tierLabel =
+    job.feedTier === "ready_now"
+      ? "Ready now"
+      : job.feedTier === "credible_stretch"
+        ? "Credible stretch"
+        : job.feedTier === "discovery"
+          ? "Discovery"
+          : "Outside your feed";
   const applyHref = dossier?.listing.canonicalListingUrl ?? job.sourceUrl;
   const postedLabel = readableDate(job.datePosted) ?? job.datePosted;
-  const heroChips = [
-    locationLabel,
-    workLabel,
-    job.employmentType !== workLabel ? job.employmentType : null,
-    job.seniority,
-    experienceRange(dossier?.listing ?? null),
-    postedLabel ? `Posted ${postedLabel}` : null,
-  ].filter((chip): chip is string => Boolean(chip));
+  const heroChips = uniqueItems(
+    [
+      locationLabel,
+      workLabel,
+      job.employmentType !== workLabel ? job.employmentType : null,
+      job.seniority,
+      experienceRange(dossier?.listing ?? null),
+      postedLabel ? `Posted ${postedLabel}` : null,
+    ].filter((chip): chip is string => Boolean(chip)),
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -665,6 +682,32 @@ export const JobDetailsDialog = memo(function JobDetailsDialog({
                     The full job listing, the employer’s own text, and company
                     background for {job.title} at {job.company}.
                   </Dialog.Description>
+
+                  <div
+                    className="mt-4 grid gap-3 rounded-[1rem] border border-[#aaa3ff]/20 bg-[#8176ff]/[0.1] px-3.5 py-3 backdrop-blur-md sm:grid-cols-2"
+                    role="note"
+                    aria-label={`${tierLabel}, ${job.evidenceConfidence} evidence confidence`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <Sparkles className="mt-0.5 size-4 shrink-0 text-[#72dbb2]" strokeWidth={1.8} aria-hidden="true" />
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8be4bf]">
+                          {tierLabel} · {job.evidenceConfidence} evidence
+                        </p>
+                        <p className="mt-1 text-[12px] leading-[1.55] text-white/75">
+                          {job.whyItFits}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="border-t border-white/10 pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#c8c4ff]">
+                        What to check
+                      </p>
+                      <p className="mt-1 text-[12px] leading-[1.55] text-white/65">
+                        {nearMatchExplanation ?? job.biggestRisk}
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="mt-5 flex flex-wrap gap-1.5">
                     {heroChips.map((chip) => (
@@ -880,6 +923,30 @@ export const JobDetailsDialog = memo(function JobDetailsDialog({
                     job.sourceUrl !== dossier?.listing.canonicalListingUrl ? (
                       <ExternalPill href={job.sourceUrl} label="Application page" />
                     ) : null}
+                    <button
+                      type="button"
+                      disabled={reportState !== "idle"}
+                      onClick={async () => {
+                        setReportState("sending");
+                        const result = await submitBetaFeedbackAction({
+                          kind: "listing_issue",
+                          jobListingId: job.id,
+                          message: "User reported this listing for review.",
+                          pagePath: `/jobs/${job.id}`,
+                        });
+                        setReportState(result.ok ? "sent" : "idle");
+                      }}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/[0.09] px-3.5 text-[11px] font-semibold text-[#8f9aae] outline-none transition hover:bg-white/[0.06] hover:text-white disabled:opacity-55 focus-visible:ring-2 focus-visible:ring-[#8176ff]/40"
+                    >
+                      {reportState === "sending" ? (
+                        <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+                      ) : reportState === "sent" ? (
+                        <Check className="size-3.5" aria-hidden="true" />
+                      ) : (
+                        <Flag className="size-3.5" aria-hidden="true" />
+                      )}
+                      {reportState === "sent" ? "Reported" : "Report listing"}
+                    </button>
                   </div>
                 </SheetSection>
               </div>

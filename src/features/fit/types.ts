@@ -26,6 +26,49 @@ export interface CandidateSkill {
   evidence: CandidateSkillEvidence;
 }
 
+export type CandidateRoleTargetReadiness = "ready_now" | "stretch";
+
+export type CandidateRoleTargetSeniority =
+  | "intern"
+  | "entry"
+  | "mid"
+  | "senior"
+  | "staff"
+  | "principal"
+  | "manager"
+  | "director"
+  | "executive";
+
+/**
+ * The role-specific portion of the candidate's search contract. Keeping this
+ * transport type independent from the database makes the deterministic scorer
+ * usable in tests and future clients without importing persistence details.
+ */
+export interface CandidateRoleTargetPreference {
+  canonicalFamily: string;
+  label: string;
+  aliases: string[];
+  priorityRank: number;
+  readiness: CandidateRoleTargetReadiness;
+  allowedSeniorityLevels: CandidateRoleTargetSeniority[];
+  minimumRequiredExperienceYears: number | null;
+  maximumRequiredExperienceYears: number | null;
+  exclusions: string[];
+}
+
+export interface RoleTargetMatch {
+  canonicalFamily: string;
+  label: string;
+  priorityRank: number;
+  readiness: CandidateRoleTargetReadiness;
+  allowedSeniorityLevels: CandidateRoleTargetSeniority[];
+  minimumRequiredExperienceYears: number | null;
+  maximumRequiredExperienceYears: number | null;
+  exclusions: string[];
+  matchQuality: "direct" | "adjacent";
+  matchedOn: string;
+}
+
 export interface CandidateLocation {
   city?: string | null;
   region?: string | null;
@@ -43,6 +86,8 @@ export interface CandidateDealBreakers {
 
 export interface CandidateFitProfile {
   targetRoleFamilies: string[] | null;
+  /** Structured targets supersede the legacy label list when supplied. */
+  roleTargets?: CandidateRoleTargetPreference[] | null;
   /** Null means the skill inventory is incomplete/unknown; [] means known empty. */
   skills: CandidateSkill[] | null;
   /** Relevant paid/professional tenure only. Portfolio time must never be added. */
@@ -57,6 +102,8 @@ export interface CandidateFitProfile {
   relocationPreference: boolean | null;
   careerGoals?: string[] | null;
   workAuthorizationCountries?: string[] | null;
+  /** Whether the candidate needs current or future employer sponsorship. */
+  requiresSponsorship?: boolean | null;
   citizenships?: string[] | null;
   securityClearances?: string[] | null;
   licenses?: string[] | null;
@@ -128,6 +175,8 @@ export interface DeterministicFitResult {
   assessmentState: AssessmentState;
   eligibility: EligibilityResult;
   components: FitComponentBreakdown[];
+  /** The best structured role direction supporting the role-family score. */
+  roleTargetMatch?: RoleTargetMatch | null;
   strongestMatches: FitEvidence[];
   qualificationGaps: FitEvidence[];
   /** Always contains at least one candid risk or uncertainty. */

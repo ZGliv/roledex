@@ -167,6 +167,141 @@
       linear-gradient(160deg, #03050b 0%, #070b15 56%, #090a18 100%);
   }
 
+  .deck-live-scene {
+    background:
+      radial-gradient(ellipse at 50% -18%, color-mix(in srgb, var(--deck-company-accent, #8176ff) 28%, transparent), transparent 52%),
+      radial-gradient(ellipse at 106% 62%, color-mix(in srgb, var(--deck-company-glass, #7191d9) 18%, transparent), transparent 46%),
+      linear-gradient(160deg, rgb(3 5 11 / 24%), rgb(6 10 20 / 8%) 54%, rgb(7 7 20 / 30%));
+    transition: opacity 500ms ease;
+  }
+
+  .deck-live-orb,
+  .deck-live-grid {
+    position: absolute;
+    display: block;
+    pointer-events: none;
+  }
+
+  .deck-live-orb {
+    width: min(76vw, 34rem);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    opacity: 0.2;
+    filter: blur(1px);
+    background: radial-gradient(circle, color-mix(in srgb, var(--deck-company-accent, #8176ff) 58%, #517cf2 42%), transparent 68%);
+    mix-blend-mode: screen;
+    will-change: transform;
+  }
+
+  .deck-live-orb-a {
+    top: -24%;
+    left: -38%;
+    animation: deck-scene-orbit-a 18s ease-in-out infinite alternate;
+  }
+
+  .deck-live-orb-b {
+    right: -42%;
+    bottom: -16%;
+    opacity: 0.14;
+    background: radial-gradient(circle, color-mix(in srgb, var(--deck-company-glass, #9b79e8) 48%, #754ccf 52%), transparent 69%);
+    animation: deck-scene-orbit-b 23s ease-in-out infinite alternate;
+  }
+
+  .deck-live-grid {
+    inset: 0;
+    opacity: 0.06;
+    background-image:
+      linear-gradient(rgb(255 255 255 / 13%) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 10%) 1px, transparent 1px);
+    background-size: 4.75rem 4.75rem;
+    mask-image: radial-gradient(ellipse at 50% 46%, black, transparent 72%);
+    transform: perspective(40rem) rotateX(68deg) translate3d(0, 22%, 0) scale(1.4);
+    transform-origin: bottom;
+  }
+
+  .deck-loading-scene {
+    background:
+      radial-gradient(ellipse at 30% 8%, rgb(95 112 216 / 27%), transparent 46%),
+      radial-gradient(ellipse at 90% 76%, rgb(118 78 190 / 16%), transparent 44%);
+    animation: deck-loading-breathe 2.4s ease-in-out infinite alternate;
+  }
+
+  .deck-loading-tabs,
+  .deck-loading-card,
+  .deck-loading-lens,
+  .deck-loading-sheet {
+    border: 1px solid rgb(255 255 255 / 10%);
+    background: rgb(255 255 255 / 4%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%);
+  }
+
+  .deck-loading-card {
+    height: clamp(
+      25rem,
+      calc(100dvh - max(0.75rem, env(safe-area-inset-top)) - var(--dock-reserve) - 3.75rem),
+      44rem
+    );
+    background:
+      radial-gradient(ellipse at 50% 18%, rgb(125 117 255 / 14%), transparent 42%),
+      linear-gradient(150deg, rgb(20 28 48 / 82%), rgb(7 12 23 / 90%));
+    box-shadow:
+      0 28px 70px rgb(0 3 12 / 34%),
+      inset 0 1px 0 rgb(255 255 255 / 15%);
+  }
+
+  .deck-loading-lens {
+    background: linear-gradient(145deg, rgb(255 255 255 / 17%), rgb(255 255 255 / 4%));
+  }
+
+  .deck-loading-sheet {
+    min-height: 16.75rem;
+    background: linear-gradient(148deg, rgb(18 25 41 / 90%), rgb(8 13 23 / 94%));
+  }
+
+  .deck-loading-line {
+    position: relative;
+    overflow: hidden;
+    background: rgb(255 255 255 / 8%);
+  }
+
+  .deck-loading-line::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 12%), transparent);
+    transform: translate3d(-110%, 0, 0);
+    animation: deck-loading-sheen 1.5s ease-in-out infinite;
+  }
+
+  .page-loading-spinner {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 2px solid rgb(255 255 255 / 10%);
+    border-top-color: #aaa3ff;
+    border-right-color: rgb(153 194 255 / 78%);
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 3%);
+    filter: drop-shadow(0 0 0.65rem rgb(139 124 255 / 28%));
+    animation: page-loading-spin 720ms linear infinite;
+  }
+
+  .profile-passport {
+    isolation: isolate;
+    background: linear-gradient(180deg, rgb(19 26 42 / 94%), rgb(8 13 24 / 94%));
+  }
+
+  .profile-passport::after {
+    display: none;
+  }
+
+  .profile-passport-orb {
+    display: none;
+  }
+
+  .profile-reveal {
+    animation: profile-reveal 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
   .ambient-page {
     position: relative;
     isolation: isolate;
@@ -297,13 +432,61 @@
   }
 
   .job-card-float {
+    transform-style: preserve-3d;
     box-shadow:
       0 1px 0 rgb(255 255 255 / 44%) inset,
       0 30px 76px rgb(0 3 12 / 48%),
       0 8px 24px rgb(0 3 12 / 25%);
   }
 
+  .obsidian-job-card::before,
+  .obsidian-job-card::after {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    content: "";
+  }
+
+  .obsidian-job-card::before {
+    z-index: 42;
+    border: 1px solid rgb(255 255 255 / 24%);
+    box-shadow:
+      inset 1px 1px 0 rgb(255 255 255 / 28%),
+      inset -1px -1px 0 rgb(1 5 14 / 32%),
+      inset 0 0 0 4px rgb(255 255 255 / 1.5%);
+  }
+
+  .obsidian-job-card::after {
+    z-index: 3;
+    opacity: 0.55;
+    background:
+      linear-gradient(124deg, rgb(255 255 255 / 13%), transparent 17% 70%, rgb(160 182 255 / 7%)),
+      radial-gradient(ellipse at 78% 7%, color-mix(in srgb, var(--company-accent) 17%, transparent), transparent 37%);
+    mix-blend-mode: screen;
+  }
+
+  .job-card-active-surface {
+    --card-press-scale: 1;
+    transform: scale(var(--card-press-scale));
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .deck-card-active:active .job-card-active-surface {
+    --card-press-scale: 0.996;
+  }
+
+  .deck-card-active[data-interacting="true"] .job-card-active-surface {
+    transition: none;
+  }
+
+  .job-card-ambient {
+    transform-origin: 52% 44%;
+    animation: job-ambient-drift 16s ease-in-out infinite alternate;
+  }
+
   .job-card-gloss {
+    overflow: hidden;
     border-radius: calc(1.75rem - 1px);
     background:
       radial-gradient(85% 46% at 12% -8%, rgb(255 255 255 / 24%), transparent 68%),
@@ -314,7 +497,374 @@
       inset 0 -1px 0 rgb(5 12 28 / 16%);
   }
 
+  .job-card-prism-field {
+    overflow: hidden;
+    border-radius: inherit;
+    opacity: 0.46;
+    background:
+      linear-gradient(116deg, transparent 14%, rgb(113 201 255 / 6%) 33%, rgb(217 143 255 / 7%) 42%, transparent 55%),
+      radial-gradient(ellipse at 18% 12%, rgb(255 255 255 / 12%), transparent 33%);
+    mix-blend-mode: screen;
+  }
+
+  .job-card-prism-field::before {
+    position: absolute;
+    top: -28%;
+    bottom: -28%;
+    left: -34%;
+    width: 28%;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 10%), rgb(138 205 255 / 6%), transparent);
+    transform: translate3d(-180%, 0, 0) rotate(14deg);
+    animation: job-prism-sweep 12s ease-in-out infinite;
+  }
+
+  .job-card-prism-field::after {
+    position: absolute;
+    inset: 12% 4% auto;
+    height: 42%;
+    content: "";
+    border-radius: 50%;
+    border-top: 1px solid rgb(255 255 255 / 9%);
+    background: radial-gradient(ellipse at 50% 0%, rgb(255 255 255 / 6%), transparent 63%);
+    transform: perspective(28rem) rotateX(58deg);
+  }
+
+  .job-card-layout-decor {
+    overflow: hidden;
+    border-radius: inherit;
+  }
+
+  .job-card-layout-decor::before,
+  .job-card-layout-decor::after {
+    position: absolute;
+    pointer-events: none;
+    content: "";
+  }
+
+  /* Eighteen layout families are paired independently with the twenty-four
+     visual skins. Every family retains the same decision data and minimum
+     content height; only hierarchy, geometry, and material treatment change. */
+  .obsidian-job-card[data-card-layout="signal-left"] .job-company-lens,
+  .obsidian-job-card[data-card-layout="signal-right"] .job-company-lens {
+    width: clamp(5.4rem, 25vw, 6.25rem);
+    height: clamp(4.2rem, 18vw, 4.8rem);
+    border-radius: 1rem;
+  }
+
+  .obsidian-job-card[data-card-layout="signal-left"] .job-card-layout-decor::before,
+  .obsidian-job-card[data-card-layout="signal-right"] .job-card-layout-decor::before {
+    top: 1.45rem;
+    width: 5.2rem;
+    height: 1px;
+    background: linear-gradient(90deg, var(--company-accent), transparent);
+    opacity: 0.7;
+  }
+
+  .obsidian-job-card[data-card-layout="signal-left"] .job-card-layout-decor::before { left: 8.1rem; }
+  .obsidian-job-card[data-card-layout="signal-right"] .job-card-layout-decor::before {
+    right: 8.1rem;
+    transform: scaleX(-1);
+  }
+
+  .obsidian-job-card[data-card-layout="ledger-rail"] .job-glass-sheet {
+    right: 0.65rem;
+    left: 1.25rem;
+    border-radius: 0.75rem 1.55rem 1.55rem 0.75rem;
+  }
+
+  .obsidian-job-card[data-card-layout="ledger-rail"] .job-glass-sheet::before {
+    width: 3px;
+    right: auto;
+    background: linear-gradient(to bottom, transparent, var(--company-accent) 22% 76%, transparent);
+  }
+
+  .obsidian-job-card[data-card-layout="ledger-rail"] .job-card-compensation {
+    border-left: 2px solid color-mix(in srgb, var(--company-accent) 55%, transparent);
+    padding-left: 0.75rem;
+  }
+
+  .obsidian-job-card[data-card-layout="prism-offset"] .job-glass-sheet {
+    right: 1.15rem;
+    left: 0.65rem;
+    bottom: 0.75rem;
+    border-radius: 1.2rem 2.6rem 1.2rem 1.8rem;
+  }
+
+  .obsidian-job-card[data-card-layout="prism-offset"] .job-card-layout-decor::after {
+    top: 12%;
+    left: -12%;
+    width: 78%;
+    height: 1px;
+    opacity: 0.55;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 54%), transparent);
+    transform: rotate(-24deg);
+  }
+
+  .obsidian-job-card[data-card-layout="capsule-stack"] .job-company-lens,
+  .obsidian-job-card[data-card-layout="orbit-medallion"] .job-company-lens,
+  .obsidian-job-card[data-card-layout="halo-frame"] .job-company-lens {
+    width: clamp(5rem, 22vw, 5.6rem);
+    height: clamp(5rem, 22vw, 5.6rem);
+    border-radius: 999px;
+  }
+
+  .obsidian-job-card[data-card-layout="capsule-stack"] .job-glass-sheet {
+    right: 0.8rem;
+    left: 0.8rem;
+    border-radius: 2.6rem 2.6rem 1.45rem 1.45rem;
+    padding-right: 1.35rem;
+    padding-left: 1.35rem;
+  }
+
+  .obsidian-job-card[data-card-layout="capsule-stack"] .job-card-tags {
+    justify-content: center;
+  }
+
+  .obsidian-job-card[data-card-layout="horizon-wide"] .job-glass-sheet {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 3.1rem 3.1rem 1.7rem 1.7rem;
+    padding-right: 1.65rem;
+    padding-left: 1.65rem;
+  }
+
+  .obsidian-job-card[data-card-layout="horizon-wide"] .job-card-compensation {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: end;
+    column-gap: 0.75rem;
+  }
+
+  .obsidian-job-card[data-card-layout="horizon-wide"] .job-card-compensation > p:last-child {
+    margin-top: 0;
+  }
+
+  .obsidian-job-card[data-card-layout="glass-monolith"] .job-glass-sheet {
+    right: 0.7rem;
+    left: 0.7rem;
+    border-radius: 1rem;
+    background:
+      radial-gradient(120% 72% at 100% 0%, color-mix(in srgb, var(--company-accent) 11%, transparent), transparent 58%),
+      linear-gradient(155deg, rgb(14 20 34 / 74%), rgb(5 10 19 / 84%));
+  }
+
+  .obsidian-job-card[data-card-layout="glass-monolith"] .job-card-kicker {
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid rgb(255 255 255 / 10%);
+  }
+
+  .obsidian-job-card[data-card-layout="orbit-medallion"] .job-company-lens {
+    box-shadow:
+      0 0 0 8px rgb(255 255 255 / 4%),
+      0 0 0 9px rgb(255 255 255 / 14%),
+      0 26px 70px rgb(0 3 12 / 36%),
+      inset 0 1px 0 rgb(255 255 255 / 80%);
+  }
+
+  .obsidian-job-card[data-card-layout="orbit-medallion"] .job-card-layout-decor::before {
+    top: 7%;
+    left: 50%;
+    width: 9.5rem;
+    aspect-ratio: 1;
+    border: 1px solid rgb(255 255 255 / 10%);
+    border-radius: 999px;
+    transform: translateX(-50%);
+  }
+
+  .obsidian-job-card[data-card-layout="corner-cut"] {
+    border-radius: 0.8rem 3rem 0.8rem 3rem;
+  }
+
+  .obsidian-job-card[data-card-layout="corner-cut"] .job-glass-sheet {
+    border-radius: 0.65rem 2.8rem 0.65rem 2.8rem;
+  }
+
+  .obsidian-job-card[data-card-layout="corner-cut"] .job-company-lens {
+    border-radius: 0.6rem 1.8rem 0.6rem 1.8rem;
+  }
+
+  .obsidian-job-card[data-card-layout="floating-ticket"] .job-glass-sheet {
+    right: 1rem;
+    bottom: 0.9rem;
+    left: 1rem;
+    border-radius: 1.15rem;
+    box-shadow:
+      0 38px 90px rgb(0 3 12 / 52%),
+      0 0 0 6px rgb(255 255 255 / 2.5%),
+      inset 0 1px 0 rgb(255 255 255 / 15%);
+  }
+
+  .obsidian-job-card[data-card-layout="floating-ticket"] .job-card-kicker::after {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--company-accent);
+    box-shadow: 0 0 0 4px rgb(255 255 255 / 7%);
+    content: "";
+  }
+
+  .obsidian-job-card[data-card-layout="editorial-left"] .job-glass-sheet,
+  .obsidian-job-card[data-card-layout="editorial-right"] .job-glass-sheet {
+    border-radius: 0.7rem;
+  }
+
+  .obsidian-job-card[data-card-layout="editorial-left"] .job-glass-sheet {
+    border-left: 2px solid color-mix(in srgb, var(--company-accent) 65%, transparent);
+  }
+
+  .obsidian-job-card[data-card-layout="editorial-right"] .job-glass-sheet {
+    border-right: 2px solid color-mix(in srgb, var(--company-accent) 65%, transparent);
+    text-align: left;
+  }
+
+  .obsidian-job-card[data-card-layout="glass-arch"] .job-glass-sheet {
+    right: 0.7rem;
+    left: 0.7rem;
+    border-radius: 7rem 7rem 1.45rem 1.45rem;
+    padding-top: 1.55rem;
+  }
+
+  .obsidian-job-card[data-card-layout="glass-arch"] .job-card-kicker,
+  .obsidian-job-card[data-card-layout="glass-arch"] .job-card-tags {
+    justify-content: center;
+  }
+
+  .obsidian-job-card[data-card-layout="technical-grid"] .job-card-layout-decor::before {
+    inset: 0;
+    opacity: 0.14;
+    background-image:
+      linear-gradient(rgb(255 255 255 / 18%) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 15%) 1px, transparent 1px);
+    background-size: 2.25rem 2.25rem;
+    mask-image: linear-gradient(to bottom, black, transparent 62%);
+  }
+
+  .obsidian-job-card[data-card-layout="technical-grid"] .job-company-lens,
+  .obsidian-job-card[data-card-layout="technical-grid"] .job-glass-sheet,
+  .obsidian-job-card[data-card-layout="technical-grid"] .job-card-read {
+    border-radius: 0.55rem;
+  }
+
+  .obsidian-job-card[data-card-layout="technical-grid"] .job-card-logistics {
+    border: 1px solid rgb(255 255 255 / 10%);
+    padding: 0 0.65rem;
+  }
+
+  .obsidian-job-card[data-card-layout="split-pane"] .job-glass-sheet {
+    right: 0.6rem;
+    left: 1.45rem;
+    border-radius: 0.85rem 2.2rem 2.2rem 0.85rem;
+  }
+
+  .obsidian-job-card[data-card-layout="split-pane"] .job-card-layout-decor::after {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 28%;
+    opacity: 0.25;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--company-accent) 34%, transparent), transparent 72%);
+    border-right: 1px solid rgb(255 255 255 / 9%);
+  }
+
+  .obsidian-job-card[data-card-layout="soft-square"] {
+    border-radius: 1rem;
+  }
+
+  .obsidian-job-card[data-card-layout="soft-square"] .job-company-lens,
+  .obsidian-job-card[data-card-layout="soft-square"] .job-glass-sheet,
+  .obsidian-job-card[data-card-layout="soft-square"] .job-card-read {
+    border-radius: 0.85rem;
+  }
+
+  .obsidian-job-card[data-card-layout="soft-square"] .job-glass-sheet {
+    right: 0.65rem;
+    bottom: 0.65rem;
+    left: 0.65rem;
+  }
+
+  .obsidian-job-card[data-card-layout="halo-frame"] .job-card-layout-decor::before {
+    top: 4%;
+    left: 50%;
+    width: 12rem;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    opacity: 0.3;
+    background: radial-gradient(circle, transparent 42%, color-mix(in srgb, var(--company-accent) 32%, transparent) 43%, transparent 70%);
+    transform: translateX(-50%);
+  }
+
+  .obsidian-job-card[data-card-layout="halo-frame"] .job-glass-sheet {
+    border-color: color-mix(in srgb, var(--company-accent) 22%, rgb(255 255 255 / 12%));
+  }
+
+  .job-card-interactive-glare {
+    position: absolute;
+    z-index: 35;
+    inset: -12%;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: var(--card-glare-opacity, 0);
+    background:
+      radial-gradient(
+        circle at 50% 46%,
+        rgb(255 255 255 / 78%) 0%,
+        rgb(160 211 255 / 25%) 15%,
+        rgb(176 139 255 / 12%) 27%,
+        transparent 49%
+      ),
+      repeating-linear-gradient(
+        118deg,
+        transparent 0 9%,
+        rgb(121 208 255 / 10%) 11%,
+        rgb(216 138 255 / 9%) 13%,
+        transparent 16% 28%
+      );
+    transform: translate3d(
+        calc(var(--card-light-x, 0px) + var(--card-foil-shift, 0px)),
+        var(--card-light-y, 0px),
+        1px
+      )
+      scale(1.08);
+    will-change: auto;
+  }
+
+  .deck-card-active[data-interacting="true"] .job-card-interactive-glare {
+    will-change: transform, opacity;
+  }
+
+  .job-deck-stage[data-interacting="true"] .job-card-ambient,
+  .job-deck-stage[data-interacting="true"] .job-card-gloss::after,
+  .job-deck-stage[data-interacting="true"] .job-card-prism-field::before,
+  .job-deck-stage[data-interacting="true"] .job-company-lens::before,
+  .deck-card-active[data-interacting="true"] .job-card-ambient,
+  .deck-card-active[data-interacting="true"] .job-card-gloss::after,
+  .deck-card-active[data-interacting="true"] .job-card-prism-field::before,
+  .deck-card-active[data-interacting="true"] .job-company-lens::before,
+  .job-deck-stage[data-interacting="true"]::before,
+  .job-deck-stage[data-interacting="true"]::after {
+    animation-play-state: paused;
+  }
+
+  .job-card-gloss::after {
+    position: absolute;
+    content: "";
+    inset: -22% auto -22% -48%;
+    width: 34%;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 13%), transparent);
+    transform: translate3d(-180%, 0, 0) rotate(11deg);
+    will-change: transform, opacity;
+    animation: job-glass-scan 9.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
   .job-company-lens {
+    --company-lens-scale: 1;
     position: relative;
     isolation: isolate;
     overflow: hidden;
@@ -334,6 +884,13 @@
       inset 0 0 30px rgb(255 255 255 / 9%);
     -webkit-backdrop-filter: blur(12px) saturate(152%) brightness(1.04);
     backdrop-filter: blur(12px) saturate(152%) brightness(1.04);
+    transform: translate3d(var(--swipe-parallax, 0), var(--swipe-lift, 0), 0) scale(var(--company-lens-scale));
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .deck-card-active:active .job-company-lens,
+  .deck-card-active[data-interacting="true"] .job-company-lens {
+    transition-duration: 0ms;
   }
 
   .job-company-lens::before {
@@ -345,6 +902,7 @@
     border-radius: calc(1.6rem - 2px);
     background:
       linear-gradient(112deg, transparent 0%, transparent 46%, rgb(255 255 255 / 8%) 51%, rgb(255 255 255 / 36%) 58%, rgb(143 169 231 / 12%) 65%, transparent 74%);
+    animation: job-lens-caustic 7.5s ease-in-out infinite alternate;
   }
 
   .job-company-lens::after {
@@ -366,8 +924,14 @@
     z-index: 2;
   }
 
+  .job-card-title {
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+
   .job-glass-sheet {
     isolation: isolate;
+    min-height: 20rem;
     border: 1px solid rgb(255 255 255 / 11%);
     background:
       radial-gradient(125% 58% at 5% -8%, rgb(255 255 255 / 10%), transparent 56%),
@@ -472,6 +1036,192 @@
 
   .obsidian-job-card[aria-hidden="true"] .job-glass-sheet {
     background: rgb(8 13 23 / 93%);
+  }
+
+  .obsidian-job-card[aria-hidden="true"] .job-card-ambient,
+  .obsidian-job-card[aria-hidden="true"] .job-card-gloss::after,
+  .obsidian-job-card[aria-hidden="true"] .job-company-lens::before {
+    animation: none;
+  }
+
+  .job-deck-stage::before,
+  .job-deck-stage::after {
+    position: absolute;
+    z-index: -1;
+    width: 13rem;
+    height: 13rem;
+    border-radius: 999px;
+    pointer-events: none;
+    content: "";
+    opacity: 0.16;
+  }
+
+  .job-deck-stage::before {
+    top: 5%;
+    left: -28%;
+    background: radial-gradient(circle, rgb(73 113 232 / 65%), transparent 69%);
+    animation: deck-orb-left 14s ease-in-out infinite alternate;
+  }
+
+  .job-deck-stage::after {
+    right: -32%;
+    bottom: 3%;
+    background: radial-gradient(circle, rgb(130 83 225 / 58%), transparent 70%);
+    animation: deck-orb-right 17s ease-in-out infinite alternate;
+  }
+
+  .job-deck-stage {
+    --deck-error-space: 0rem;
+    --deck-feedback-space: 0rem;
+    --deck-hint-space: 0rem;
+    --deck-status-space: 0rem;
+    /* Account for safe-page padding and dock clearance. The single feed no
+       longer spends vertical space on a lane switch, leaving the card room to
+       show both its reason and its material caveat. */
+    height: clamp(
+      25rem,
+      calc(
+        100dvh - max(0.75rem, env(safe-area-inset-top)) -
+          var(--dock-reserve) - 2rem - var(--deck-status-space) -
+          var(--deck-hint-space) - var(--deck-feedback-space) -
+          var(--deck-error-space)
+      ),
+      44rem
+    );
+    transition: height 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .job-deck-stage[data-feed-status="true"] {
+    --deck-status-space: 2.75rem;
+  }
+
+  .job-deck-stage[data-gesture-hint="true"] {
+    --deck-hint-space: 3.25rem;
+  }
+
+  .job-deck-stage[data-feedback-prompt="true"] {
+    --deck-feedback-space: 7.75rem;
+  }
+
+  .job-deck-stage[data-has-error="true"] {
+    --deck-error-space: 4.5rem;
+  }
+
+  .deck-card-under {
+    will-change: transform, opacity;
+  }
+
+  .deck-card-under[data-promoting="true"] .job-card-preview {
+    opacity: 1;
+  }
+
+  .job-card-preview-veil {
+    transition: opacity 150ms ease;
+  }
+
+  .deck-card-under[data-promoting="true"] .job-card-preview-veil {
+    opacity: 0;
+  }
+
+  .deck-card-active {
+    transform-style: preserve-3d;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .navigation-pending-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    display: grid;
+    pointer-events: none;
+    place-items: center;
+    background: rgb(4 7 15 / 54%);
+    opacity: 0;
+    visibility: hidden;
+    -webkit-backdrop-filter: blur(5px) saturate(115%);
+    backdrop-filter: blur(5px) saturate(115%);
+  }
+
+  .navigation-pending-overlay[data-visible="true"] {
+    visibility: visible;
+    animation: navigation-pending-reveal 160ms ease 100ms both;
+  }
+
+  .deck-lane-switch {
+    position: relative;
+    isolation: isolate;
+    border: 1px solid rgb(255 255 255 / 11%);
+    background:
+      radial-gradient(90% 150% at 50% -70%, rgb(255 255 255 / 18%), transparent 72%),
+      rgb(8 13 24 / 58%);
+    box-shadow:
+      0 16px 42px rgb(0 3 12 / 22%),
+      inset 0 1px 0 rgb(255 255 255 / 12%);
+    -webkit-backdrop-filter: blur(20px) saturate(130%);
+    backdrop-filter: blur(20px) saturate(130%);
+  }
+
+  .deck-lane-button {
+    color: #8793a9;
+    transition: color 220ms ease;
+  }
+
+  .deck-lane-button::before {
+    position: absolute;
+    z-index: 0;
+    content: "";
+    inset: 0;
+    border: 1px solid transparent;
+    border-radius: inherit;
+    opacity: 0;
+    transform: scale(0.94);
+    background:
+      radial-gradient(95% 100% at 50% 0%, rgb(255 255 255 / 15%), transparent 62%),
+      linear-gradient(145deg, rgb(255 255 255 / 12%), rgb(129 118 255 / 10%));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 17%),
+      0 7px 18px rgb(0 3 12 / 18%);
+    transition:
+      opacity 220ms ease,
+      transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 220ms ease;
+  }
+
+  .deck-lane-button[aria-pressed="true"] {
+    color: #f6f8fc;
+  }
+
+  .deck-lane-button[aria-pressed="true"]::before {
+    border-color: rgb(255 255 255 / 11%);
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .deck-feedback-tray {
+    border: 1px solid rgb(255 255 255 / 13%);
+    background:
+      radial-gradient(90% 100% at 12% -24%, rgb(129 118 255 / 16%), transparent 68%),
+      linear-gradient(145deg, rgb(17 23 39 / 88%), rgb(7 12 22 / 84%));
+    box-shadow:
+      0 26px 70px rgb(0 3 12 / 48%),
+      inset 0 1px 0 rgb(255 255 255 / 14%),
+      inset 0 -1px 0 rgb(0 0 0 / 24%);
+    -webkit-backdrop-filter: blur(26px) saturate(135%);
+    backdrop-filter: blur(26px) saturate(135%);
+    animation: deck-feedback-arrive 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .deck-feedback-options {
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  .deck-feedback-options::-webkit-scrollbar {
+    display: none;
+  }
+
+  .deck-gesture-hint {
+    animation: deck-hint-arrive 420ms 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
   }
 
   .safe-area-bottom {
@@ -582,6 +1332,7 @@
       0 14px 38px rgb(23 92 66 / 45%),
       inset 0 1px 0 rgb(255 255 255 / 22%);
     text-shadow: 0 0 18px rgb(89 210 162 / 65%);
+    transform: rotate(-8deg) translate3d(0, var(--stamp-lift, 5px), 0) scale(var(--stamp-scale, 0.9));
   }
 
   .deck-stamp-pass {
@@ -593,6 +1344,192 @@
       0 14px 38px rgb(118 30 44 / 45%),
       inset 0 1px 0 rgb(255 255 255 / 22%);
     text-shadow: 0 0 18px rgb(230 98 118 / 60%);
+    transform: rotate(8deg) translate3d(0, var(--stamp-lift, 5px), 0) scale(var(--stamp-scale, 0.9));
+  }
+
+  .saved-filter-panel {
+    isolation: isolate;
+    background:
+      radial-gradient(110% 76% at 0% 0%, rgb(129 118 255 / 12%), transparent 55%),
+      linear-gradient(148deg, rgb(16 23 40 / 88%), rgb(7 12 23 / 92%));
+    -webkit-backdrop-filter: blur(24px) saturate(132%);
+    backdrop-filter: blur(24px) saturate(132%);
+    animation: saved-filter-reveal 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .saved-filter-panel::before {
+    position: absolute;
+    inset: 0 12% auto;
+    z-index: -1;
+    height: 1px;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgb(173 165 255 / 46%), transparent);
+  }
+
+  .saved-filter-choice[aria-pressed="true"]::before {
+    position: absolute;
+    inset: 0.18rem 22% auto;
+    height: 1px;
+    content: "";
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 56%), transparent);
+  }
+}
+
+@keyframes job-ambient-drift {
+  from { transform: translate3d(-1.5%, -0.5%, 0) scale(1.02) rotate(-0.5deg); }
+  to { transform: translate3d(1.75%, 1%, 0) scale(1.07) rotate(0.75deg); }
+}
+
+@keyframes saved-filter-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -5px, 0) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes job-prism-sweep {
+  0%, 66% {
+    opacity: 0;
+    transform: translate3d(-180%, 0, 0) rotate(14deg);
+  }
+
+  72% { opacity: 0.8; }
+
+  86%, 100% {
+    opacity: 0;
+    transform: translate3d(680%, 0, 0) rotate(14deg);
+  }
+}
+
+@keyframes deck-scene-orbit-a {
+  from { transform: translate3d(-5%, -3%, 0) scale(0.92); }
+  to { transform: translate3d(16%, 12%, 0) scale(1.08); }
+}
+
+@keyframes deck-scene-orbit-b {
+  from { transform: translate3d(8%, 9%, 0) scale(1.04); }
+  to { transform: translate3d(-14%, -12%, 0) scale(0.9); }
+}
+
+@keyframes deck-loading-breathe {
+  from { opacity: 0.66; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.035); }
+}
+
+@keyframes deck-loading-sheen {
+  0% { transform: translate3d(-110%, 0, 0); }
+  55%, 100% { transform: translate3d(110%, 0, 0); }
+}
+
+@keyframes page-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes navigation-pending-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes job-glass-scan {
+  0%, 62% {
+    opacity: 0;
+    transform: translate3d(-180%, 0, 0) rotate(11deg);
+  }
+
+  68% { opacity: 0.5; }
+
+  82% {
+    opacity: 0;
+    transform: translate3d(500%, 0, 0) rotate(11deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(500%, 0, 0) rotate(11deg);
+  }
+}
+
+@keyframes job-lens-caustic {
+  from { transform: translate3d(-4%, -1%, 0) scale(1.04); }
+  to { transform: translate3d(4%, 1%, 0) scale(1.04); }
+}
+
+@keyframes deck-orb-left {
+  from { transform: translate3d(-8px, -10px, 0) scale(0.94); }
+  to { transform: translate3d(18px, 18px, 0) scale(1.08); }
+}
+
+@keyframes deck-orb-right {
+  from { transform: translate3d(12px, 10px, 0) scale(1.05); }
+  to { transform: translate3d(-16px, -20px, 0) scale(0.92); }
+}
+
+@keyframes deck-hint-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 5px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes deck-feedback-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes profile-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes profile-passport-orb {
+  from {
+    transform: translate3d(-7px, -4px, 0) scale(0.94);
+  }
+
+  to {
+    transform: translate3d(11px, 13px, 0) scale(1.07);
+  }
+}
+
+@keyframes profile-passport-sheen {
+  0%, 68% {
+    opacity: 0;
+    transform: translate3d(-220%, 0, 0) rotate(12deg);
+  }
+
+  74% {
+    opacity: 0.55;
+  }
+
+  88%, 100% {
+    opacity: 0;
+    transform: translate3d(680%, 0, 0) rotate(12deg);
   }
 }
 
@@ -626,16 +1563,50 @@
     --dock-clearance: 0.5rem;
   }
 
-  .job-company-lens {
-    transform: scale(0.82);
+  /* Short phones cannot afford a separate gesture-caption row. Keeping it in
+     the height budget forced the 25rem stage minimum underneath the dock. The
+     card remains fully interactive and exposes the same instructions through
+     its accessible label. */
+  .job-deck-stage[data-gesture-hint="true"] {
+    --deck-hint-space: 0rem;
+    height: clamp(
+      22rem,
+      calc(
+        100dvh - max(0.75rem, env(safe-area-inset-top)) -
+          var(--dock-reserve) - 2rem - var(--deck-status-space) -
+          var(--deck-feedback-space) - var(--deck-error-space)
+      ),
+      24rem
+    );
   }
 
-  .job-glass-sheet {
-    min-height: 16.25rem;
+  .deck-gesture-hint {
+    display: none;
+  }
+
+  .job-company-lens {
+    --company-lens-scale: 0.82;
+  }
+
+  .emergency-job-card .job-glass-sheet {
+    min-height: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .navigation-pending-overlay[data-visible="true"] {
+    animation: none;
+    opacity: 1;
+  }
+
+  .page-loading-spinner {
+    animation: none;
+  }
+
+  .job-card-interactive-glare {
+    display: none;
+  }
+
   *,
   *::before,
   *::after {
@@ -671,9 +1642,54 @@
   .role-decision-surface {
     background: rgb(13 20 35 / 97%);
   }
+
+  .deck-lane-switch,
+  .deck-feedback-tray {
+    background: rgb(10 15 27 / 97%);
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
+  .profile-passport {
+    background: rgb(9 15 27 / 98%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .profile-dashboard .profile-glass-surface,
+  .profile-dashboard .editorial-dark-surface {
+    background: rgb(10 15 27 / 98%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .profile-dashboard .backdrop-blur-xl,
+  .profile-dashboard .backdrop-blur-2xl,
+  .profile-dashboard .backdrop-blur-3xl {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .profile-passport::after,
+  .profile-passport-orb {
+    display: none;
+  }
+
+  .job-deck-stage::before,
+  .job-deck-stage::after,
+  .deck-live-scene,
+  .job-card-prism-field,
+  .job-card-interactive-glare,
+  .job-card-gloss::after {
+    display: none;
+  }
+
+  .saved-filter-panel {
+    background: rgb(9 15 27 / 98%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
   .glass-panel,
   .glass-panel-strong,
   .glass-bar,
@@ -693,7 +1709,9 @@
 
   .job-company-lens,
   .job-glass-sheet,
-  .role-decision-surface {
+  .role-decision-surface,
+  .deck-lane-switch,
+  .deck-feedback-tray {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -708,6 +1726,44 @@
 
   .role-decision-surface {
     background: rgb(13 20 35 / 96%);
+  }
+}
+
+.emergency-job-card {
+  transform-origin: 50% 82%;
+  will-change: transform;
+}
+
+.emergency-card-glare {
+  background:
+    radial-gradient(
+      circle at var(--emergency-glare-x, 50%) var(--emergency-glare-y, 28%),
+      rgb(255 255 255 / 0.26),
+      transparent 23%
+    ),
+    linear-gradient(118deg, transparent 22%, rgb(255 255 255 / 0.13) 43%, transparent 62%);
+  mix-blend-mode: screen;
+  opacity: 0.56;
+  transition: opacity 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emergency-job-card {
+    will-change: auto;
+  }
+
+  .emergency-card-glare {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .emergency-job-card {
+    background: #111827 !important;
+  }
+
+  .emergency-card-glare {
+    display: none;
   }
 }
 

@@ -3,17 +3,10 @@
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
-  BriefcaseBusiness,
   CheckCircle2,
   ChevronDown,
-  CircleDollarSign,
   Gauge,
-  Layers3,
   LoaderCircle,
-  MapPin,
-  Save,
-  ShieldCheck,
-  Target,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,10 +26,10 @@ import { cn } from "@/lib/utils";
 const INITIAL_STATE: CandidateProfileActionState = { message: "", ok: false };
 
 const INPUT_CLASS =
-  "h-11 rounded-[0.9rem] border-white/10 bg-white/[0.055] text-base text-[#edf1f8] shadow-none placeholder:text-[#66738a] focus-visible:border-[#8176ff]/50 focus-visible:ring-[#8176ff]/15 sm:text-sm";
+  "h-13 cursor-text rounded-[0.75rem] border-white/[0.18] bg-[#111827] px-4 text-[16px] font-normal text-[#f5f7fb] shadow-[inset_0_1px_0_rgba(255,255,255,.045)] placeholder:text-[#68758a] hover:border-white/[0.26] focus-visible:border-[#a9a2ff]/70 focus-visible:bg-[#141c2c] focus-visible:ring-3 focus-visible:ring-[#8176ff]/14";
 const TEXTAREA_CLASS =
-  "min-h-28 max-h-52 scroll-mt-28 resize-y overflow-y-auto rounded-[0.9rem] border-white/10 bg-white/[0.055] text-base leading-6 text-[#edf1f8] shadow-none [field-sizing:fixed] placeholder:text-[#66738a] focus-visible:border-[#8176ff]/50 focus-visible:ring-[#8176ff]/15 sm:text-sm";
-const LABEL_CLASS = "text-[12px] font-semibold text-[#cbd3e1]";
+  "min-h-32 max-h-64 cursor-text scroll-mt-28 resize-y overflow-y-auto rounded-[0.75rem] border-white/[0.18] bg-[#111827] px-4 py-3.5 text-[16px] font-normal leading-7 text-[#f5f7fb] shadow-[inset_0_1px_0_rgba(255,255,255,.045)] [field-sizing:fixed] placeholder:text-[#68758a] hover:border-white/[0.26] focus-visible:border-[#a9a2ff]/70 focus-visible:bg-[#141c2c] focus-visible:ring-3 focus-visible:ring-[#8176ff]/14";
+const LABEL_CLASS = "text-[14px] font-medium text-[#e4e8ef]";
 
 export type CandidateProfileFormValue = {
   careerGoals: string[];
@@ -70,7 +63,7 @@ const SALARY_FIELDS = [
   {
     label: "Minimum to move",
     name: "preferredSalaryMinimumCents",
-    why: "Roles below this line lose priority.",
+    why: "Below-floor posted pay is blocked; credible low estimates move to Stretch.",
   },
   {
     label: "Ideal target",
@@ -125,7 +118,7 @@ function FieldError({
 
 function FieldNote({ children, id }: { children: React.ReactNode; id: string }) {
   return (
-    <p id={id} className="text-[11px] leading-4 text-[#8490a4]">
+    <p id={id} className="text-[12px] leading-5 text-[#8e9aae]">
       {children}
     </p>
   );
@@ -158,7 +151,7 @@ function MultilineField({
         <Label htmlFor={name} className={LABEL_CLASS}>
           {label}
         </Label>
-        <span className="shrink-0 text-[11px] text-[#748097]">One per line</span>
+        <span className="shrink-0 text-[12px] text-[#7f8ba0]">One item per line</span>
       </div>
       <Textarea
         id={name}
@@ -179,14 +172,12 @@ function MultilineField({
 function EssentialSection({
   children,
   description,
-  icon: Icon,
   id,
   step,
   title,
 }: {
   children: React.ReactNode;
   description: string;
-  icon: typeof Target;
   id: string;
   step: string;
   title: string;
@@ -197,23 +188,20 @@ function EssentialSection({
     <section
       id={id}
       aria-labelledby={headingId}
-      className="scroll-mt-28 border-b border-white/[0.09] px-4 py-6 last:border-b-0 sm:px-6 sm:py-7"
+      className="scroll-mt-28 border-b border-white/[0.09] px-4 py-7 last:border-b-0 sm:px-6 sm:py-8"
     >
-      <div className="mb-5 grid grid-cols-[1.75rem_minmax(0,1fr)] gap-3">
-        <span className="grid size-7 place-items-center rounded-[0.6rem] border border-[#8176ff]/25 bg-[#8176ff]/10 text-[11px] font-semibold tabular-nums text-[#aaa3ff]">
+      <div className="mb-6 grid grid-cols-[1.75rem_minmax(0,1fr)] gap-3">
+        <span className="pt-1 font-mono text-[11px] font-medium tabular-nums text-[#737f92]">
           {step}
         </span>
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Icon className="size-4 shrink-0 text-[#8176ff]" aria-hidden="true" />
-            <h2
-              id={headingId}
-              className="text-base font-semibold tracking-[-0.025em] text-[#f2f4f9]"
-            >
-              {title}
-            </h2>
-          </div>
-          <p className="mt-1 max-w-2xl text-[12px] leading-5 text-[#909caf]">
+          <h2
+            id={headingId}
+            className="font-display text-[20px] font-semibold tracking-[-0.03em] text-[#f4f6fa]"
+          >
+            {title}
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-[#98a3b5]">
             {description}
           </p>
         </div>
@@ -289,8 +277,12 @@ function completenessFromForm(form: HTMLFormElement) {
 }
 
 export function CandidateProfileForm({
+  embedded = false,
+  onRevisionChange,
   profile,
 }: {
+  embedded?: boolean;
+  onRevisionChange?: (revision: number) => void;
   profile: CandidateProfileFormValue;
 }) {
   const [dirty, setDirty] = useState(false);
@@ -303,15 +295,21 @@ export function CandidateProfileForm({
         previousState,
         formData,
       );
-      if (nextState.ok) setDirty(false);
+      if (nextState.ok) {
+        setDirty(false);
+        if (nextState.revision !== undefined) {
+          onRevisionChange?.(nextState.revision);
+        }
+      }
       return nextState;
     },
-    [],
+    [onRevisionChange],
   );
-  const [state, formAction, pending] = useActionState(
+  const [submittedState, formAction, pending] = useActionState(
     submitProfile,
     INITIAL_STATE,
   );
+  const state = dirty ? INITIAL_STATE : submittedState;
   const [completeness, setCompleteness] = useState(() =>
     calculateProfileCompleteness(profile),
   );
@@ -351,21 +349,22 @@ export function CandidateProfileForm({
 
   return (
     <form
-      key={profile.revision}
       ref={formRef}
       action={formAction}
       aria-busy={pending}
       onInput={(event) => {
         setDirty(true);
-        setCompleteness(completenessFromForm(event.currentTarget));
+        if (!embedded) {
+          setCompleteness(completenessFromForm(event.currentTarget));
+        }
       }}
       className="min-w-0"
     >
       <input type="hidden" name="expectedRevision" value={profile.revision} />
 
-      <div className="sticky top-3 z-30 mb-3">
+      <div className={cn(embedded ? "sticky top-2 z-20 mb-4" : "sticky top-3 z-30 mb-3")}>
         <div
-          className="editorial-dark-surface flex min-h-[3.75rem] items-center gap-3 rounded-[1.15rem] px-3 py-2 shadow-[0_18px_48px_rgba(0,0,0,.34)] sm:px-4"
+          className="editorial-dark-surface flex min-h-[4.25rem] items-center gap-3 rounded-[1.2rem] border border-white/[0.12] px-3 py-2.5 shadow-[0_18px_48px_rgba(0,0,0,.4)] sm:px-4"
           style={{ backgroundColor: "rgba(10, 15, 27, 0.9)" }}
         >
           <p
@@ -373,7 +372,7 @@ export function CandidateProfileForm({
             aria-live="polite"
             role={!pending && state.message && !state.ok ? "alert" : "status"}
             className={cn(
-              "min-w-0 flex-1 text-[11px] font-medium leading-4 sm:text-[12px]",
+              "min-w-0 flex-1 text-[12px] font-semibold leading-4 sm:text-[13px]",
               pending
                 ? "text-[#b5afff]"
                 : state.message
@@ -396,24 +395,20 @@ export function CandidateProfileForm({
             ) : null}
             {pending
               ? "Updating your matches…"
-              : state.message || (dirty ? "Unsaved profile changes" : "Profile is up to date")}
+              : state.message || (dirty ? "Unsaved changes" : "Edit the fields below")}
           </p>
           <Button
             type="submit"
             disabled={pending || !dirty}
-            className="h-11 shrink-0 border-[#8176ff] bg-[#8176ff] px-4 text-white shadow-[0_8px_22px_rgba(72,60,210,.28)] hover:bg-[#6d61f3] focus-visible:ring-[#9a91ff]/55 focus-visible:ring-offset-[#080c16] disabled:bg-white/[0.08] disabled:text-[#778297] disabled:shadow-none sm:px-5"
+            className="h-12 shrink-0 rounded-[0.75rem] border-[#8176ff] bg-[#8176ff] px-4 text-[13px] font-semibold text-white shadow-[0_8px_22px_rgba(72,60,210,.24)] hover:bg-[#6d61f3] focus-visible:ring-[#9a91ff]/55 focus-visible:ring-offset-[#080c16] disabled:bg-white/[0.08] disabled:text-[#778297] disabled:shadow-none sm:px-5"
           >
-            {pending ? (
-              <LoaderCircle className="animate-spin" data-icon="inline-start" />
-            ) : (
-              <Save data-icon="inline-start" />
-            )}
-            {pending ? "Saving…" : dirty ? "Save changes" : "Saved"}
+            {pending ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : null}
+            {pending ? "Saving…" : "Save changes"}
           </Button>
         </div>
       </div>
 
-      <div className="editorial-dark-surface overflow-hidden rounded-[1.35rem]">
+      <div className="editorial-dark-surface overflow-hidden rounded-[0.9rem] border border-white/[0.11]">
         <fieldset
           disabled={pending}
           aria-describedby="profile-save-status"
@@ -424,27 +419,28 @@ export function CandidateProfileForm({
         >
           <legend className="sr-only">Profile preferences</legend>
 
-          <CompletenessMeter value={completeness} />
+          {embedded ? null : <CompletenessMeter value={completeness} />}
 
-          <nav
-            className="flex overflow-x-auto border-b border-white/[0.09] px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-5"
-            aria-label="Profile sections"
-          >
-            {PROFILE_SECTIONS.map(([href, label]) => (
-              <a
-                key={href}
-                href={href}
-                className="inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-3 text-[11px] font-semibold text-[#8e99ad] outline-none transition hover:text-[#dce1eb] focus-visible:border-[#8176ff] focus-visible:text-white"
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
+          {embedded ? null : (
+            <nav
+              className="flex overflow-x-auto border-b border-white/[0.09] px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-5"
+              aria-label="Profile sections"
+            >
+              {PROFILE_SECTIONS.map(([href, label]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="inline-flex min-h-11 shrink-0 items-center border-b-2 border-transparent px-3 text-[11px] font-semibold text-[#8e99ad] outline-none transition hover:text-[#dce1eb] focus-visible:border-[#8176ff] focus-visible:text-white"
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          )}
 
           <EssentialSection
             id="direction"
             step="01"
-            icon={Target}
             title="Direction"
             description="Define the work you do now and the role families worth showing you next."
           >
@@ -474,15 +470,23 @@ export function CandidateProfileForm({
                 </FieldNote>
                 <FieldError id="currentRole-error" name="currentRole" state={state} />
               </div>
-              <MultilineField
-                label="Target role directions"
-                name="targetRoleFamilies"
-                rows={5}
-                placeholder={"AI implementation\nTechnical customer success\nProduct operations"}
-                value={profile.targetRoleFamilies}
-                state={state}
-                why="Use role families rather than one exact title to keep the feed focused without becoming narrow."
-              />
+              {embedded ? (
+                <input
+                  type="hidden"
+                  name="targetRoleFamilies"
+                  value={lines(profile.targetRoleFamilies)}
+                />
+              ) : (
+                <MultilineField
+                  label="Target role directions"
+                  name="targetRoleFamilies"
+                  rows={5}
+                  placeholder={"AI implementation\nTechnical customer success\nProduct operations"}
+                  value={profile.targetRoleFamilies}
+                  state={state}
+                  why="These labels drive role retrieval. Use the structured role-direction editor on your profile for Ready now and Stretch rules."
+                />
+              )}
               <MultilineField
                 label="Industries worth exploring"
                 name="preferredIndustries"
@@ -498,7 +502,6 @@ export function CandidateProfileForm({
           <EssentialSection
             id="work-location"
             step="02"
-            icon={MapPin}
             title="Location"
             description="Remove roles that are not realistically commutable, remote-eligible, or worth relocating for."
           >
@@ -551,56 +554,66 @@ export function CandidateProfileForm({
                   state={state}
                 />
               </div>
-              <fieldset
-                id="preferredWorkArrangements"
-                className="scroll-mt-28 space-y-2 sm:col-span-2"
-                aria-invalid={workArrangementsHaveError}
-                aria-describedby={describedBy(
-                  "preferredWorkArrangements-help",
-                  workArrangementsHaveError && "preferredWorkArrangements-error",
-                )}
-              >
-                <legend className={LABEL_CLASS}>Work modes you would accept</legend>
-                <div className="grid grid-cols-1 divide-y divide-white/[0.08] overflow-hidden rounded-[0.9rem] border border-white/10 bg-white/[0.035] min-[370px]:grid-cols-3 min-[370px]:divide-x min-[370px]:divide-y-0">
-                  {[
-                    ["remote", "Remote"],
-                    ["hybrid", "Hybrid"],
-                    ["on_site", "On-site"],
-                  ].map(([value, label]) => (
-                    <label
-                      key={value}
-                      className="flex min-h-12 cursor-pointer items-center gap-2.5 px-3.5 text-[12px] font-semibold text-[#9da8bb] transition hover:bg-white/[0.045] has-[:checked]:bg-[#8176ff]/10 has-[:checked]:text-[#c4beff]"
-                    >
-                      <input
-                        type="checkbox"
-                        name="preferredWorkArrangements"
-                        value={value}
-                        defaultChecked={profile.preferredWorkArrangements.includes(value)}
-                        aria-invalid={workArrangementsHaveError}
-                        className="size-4 accent-[#8176ff]"
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-                <FieldNote id="preferredWorkArrangements-help">
-                  Leave checked only the arrangements you would genuinely consider.
-                </FieldNote>
-                <FieldError
-                  id="preferredWorkArrangements-error"
-                  name="preferredWorkArrangements"
-                  state={state}
-                />
-              </fieldset>
+              {embedded ? (
+                profile.preferredWorkArrangements.map((value) => (
+                  <input
+                    key={value}
+                    type="hidden"
+                    name="preferredWorkArrangements"
+                    value={value}
+                  />
+                ))
+              ) : (
+                <fieldset
+                  id="preferredWorkArrangements"
+                  className="scroll-mt-28 space-y-2 sm:col-span-2"
+                  aria-invalid={workArrangementsHaveError}
+                  aria-describedby={describedBy(
+                    "preferredWorkArrangements-help",
+                    workArrangementsHaveError && "preferredWorkArrangements-error",
+                  )}
+                >
+                  <legend className={LABEL_CLASS}>Work modes you would accept</legend>
+                  <div className="grid grid-cols-1 divide-y divide-white/[0.08] overflow-hidden rounded-[0.9rem] border border-white/10 bg-white/[0.035] min-[370px]:grid-cols-3 min-[370px]:divide-x min-[370px]:divide-y-0">
+                    {[
+                      ["remote", "Remote"],
+                      ["hybrid", "Hybrid"],
+                      ["on_site", "On-site"],
+                    ].map(([value, label]) => (
+                      <label
+                        key={value}
+                        className="flex min-h-12 cursor-pointer items-center gap-2.5 px-3.5 text-[12px] font-semibold text-[#9da8bb] transition hover:bg-white/[0.045] has-[:checked]:bg-[#8176ff]/10 has-[:checked]:text-[#c4beff]"
+                      >
+                        <input
+                          type="checkbox"
+                          name="preferredWorkArrangements"
+                          value={value}
+                          defaultChecked={profile.preferredWorkArrangements.includes(value)}
+                          aria-invalid={workArrangementsHaveError}
+                          className="size-4 accent-[#8176ff]"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  <FieldNote id="preferredWorkArrangements-help">
+                    Selected modes improve fit. Turn on strict work-mode filtering in Search preferences to hide the others.
+                  </FieldNote>
+                  <FieldError
+                    id="preferredWorkArrangements-error"
+                    name="preferredWorkArrangements"
+                    state={state}
+                  />
+                </fieldset>
+              )}
             </div>
           </EssentialSection>
 
           <EssentialSection
             id="pay"
             step="03"
-            icon={CircleDollarSign}
             title="Pay"
-            description="Set annual base salary thresholds so an attractive title cannot hide a sideways move."
+            description="Set a real annual base floor so an attractive title cannot hide a sideways move."
           >
             <div className="grid border-y border-white/[0.09] sm:grid-cols-3 sm:divide-x sm:divide-white/[0.09]">
               {SALARY_FIELDS.map(({ name, label, why }, index) => {
@@ -644,8 +657,7 @@ export function CandidateProfileForm({
                 );
               })}
             </div>
-            <p className="mt-4 flex items-start gap-2 text-[11px] leading-4 text-[#8490a4]">
-              <ShieldCheck className="mt-px size-3.5 shrink-0 text-[#8176ff]" aria-hidden="true" />
+            <p className="mt-4 text-[12px] leading-5 text-[#8490a4]">
               Compensation is used only for private ranking and is never sent to employers.
             </p>
           </EssentialSection>
@@ -653,7 +665,6 @@ export function CandidateProfileForm({
           <EssentialSection
             id="experience"
             step="04"
-            icon={BriefcaseBusiness}
             title="Experience"
             description="Record evidence you can defend today; growth areas stay visible instead of becoming fake matches."
           >
@@ -705,10 +716,7 @@ export function CandidateProfileForm({
           >
             <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 outline-none transition hover:bg-white/[0.025] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8176ff]/40 sm:px-6 [&::-webkit-details-marker]:hidden">
               <span className="flex min-w-0 items-start gap-3">
-                <Layers3
-                  className="mt-0.5 size-4 shrink-0 text-[#7f8ba1] group-open:text-[#8176ff]"
-                  aria-hidden="true"
-                />
+                <span className="mt-0.5 w-6 shrink-0 font-mono text-[11px] text-[#737f92]">05</span>
                 <span>
                   <span className="block text-[13px] font-semibold text-[#e3e8f1]">
                     Advanced details

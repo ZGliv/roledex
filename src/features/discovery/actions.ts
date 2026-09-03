@@ -7,6 +7,8 @@ import { z } from "zod";
 import { db, ensureDatabaseReady } from "@/db/client";
 import { jobSources } from "@/db/schema";
 import { requireOwnerSession } from "@/features/auth/session";
+import { OWNER_VISITOR_ID } from "@/features/auth/identity";
+import { getActiveCandidateProfileForVisitor } from "@/features/candidate/queries";
 import type { SourceMutationActionState } from "@/features/discovery/action-state";
 import {
   discoveryRefreshSeverity,
@@ -16,6 +18,7 @@ import {
   refreshDiscoveryJobs,
   type DiscoveryRefreshResult,
 } from "@/features/discovery/service";
+import { buildDiscoveryCandidateProfile } from "@/features/discovery/relevance";
 import { validateJobSource } from "@/features/discovery/source-management";
 import {
   normalizeCompanyDomain,
@@ -33,7 +36,10 @@ export async function refillJobsAction(): Promise<RefillJobsActionState> {
   await requireOwnerSession();
 
   try {
-    const result = await refreshDiscoveryJobs("on_demand");
+    const profile = await getActiveCandidateProfileForVisitor(OWNER_VISITOR_ID);
+    const result = await refreshDiscoveryJobs("on_demand", {
+      focus: buildDiscoveryCandidateProfile(profile),
+    });
     const severity = discoveryRefreshSeverity(result);
     revalidateDiscoveryPaths();
     return {

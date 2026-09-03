@@ -119,11 +119,15 @@ afterAll(() => {
 });
 
 describe.sequential("candidate profile write guards", () => {
-  it("limits each visitor scoring pass to the newest 100 jobs", async () => {
-    const { VISITOR_SCORE_WINDOW } = await import(
+  it("uses bounded scoring batches with a catalog-sized per-call ceiling", async () => {
+    const {
+      VISITOR_SCORE_BATCH_SIZE,
+      VISITOR_SCORE_MAX_BATCHES_PER_CALL,
+    } = await import(
       "@/features/candidate/scoring"
     );
-    expect(VISITOR_SCORE_WINDOW).toBe(100);
+    expect(VISITOR_SCORE_BATCH_SIZE).toBe(100);
+    expect(VISITOR_SCORE_MAX_BATCHES_PER_CALL).toBe(10);
   });
 
   it("returns unchanged before writing a revision or fit scores", async () => {

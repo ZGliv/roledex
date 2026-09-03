@@ -41,6 +41,7 @@ loadLocalEnvironment();
 
 const tursoDatabaseUrl = process.env.TURSO_DATABASE_URL?.trim();
 const tursoAuthToken = process.env.TURSO_AUTH_TOKEN?.trim();
+const localDatabaseUrl = process.env.DATABASE_URL?.trim();
 
 if (process.env.VERCEL && (!tursoDatabaseUrl || !tursoAuthToken)) {
   throw new Error(
@@ -48,8 +49,15 @@ if (process.env.VERCEL && (!tursoDatabaseUrl || !tursoAuthToken)) {
   );
 }
 
-const configuredDatabaseUrl =
-  tursoDatabaseUrl || process.env.DATABASE_URL?.trim() || DEFAULT_DATABASE_PATH;
+// Local development must never write to the hosted production catalog merely
+// because a developer also has Turso credentials in `.env.local`.
+const preferLocalDatabase =
+  !process.env.VERCEL &&
+  process.env.NODE_ENV !== "production" &&
+  Boolean(localDatabaseUrl);
+const configuredDatabaseUrl = preferLocalDatabase
+  ? localDatabaseUrl!
+  : tursoDatabaseUrl || localDatabaseUrl || DEFAULT_DATABASE_PATH;
 
 export const databaseUrl = normalizeDatabaseUrl(configuredDatabaseUrl);
 
@@ -80,7 +88,13 @@ let readinessPromise: Promise<void> | undefined;
 export function ensureDatabaseReady(): Promise<void> {
   readinessPromise ??= client
     .execute("PRAGMA foreign_keys = ON")
-    .then(() => undefined);
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      // A brief network failure should fail this request, not poison every
+      // request handled by the same long-lived function instance.
+      readinessPromise = undefined;
+      throw error;
+    });
   return readinessPromise;
 }
 

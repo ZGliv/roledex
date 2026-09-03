@@ -119,14 +119,12 @@ export function CompanyMark({
     <span
       aria-hidden="true"
       className={cn(
-        "block max-w-full overflow-hidden whitespace-nowrap break-normal text-center font-semibold uppercase leading-none tracking-[0.05em]",
+        "inline-flex h-full w-full max-w-full items-center justify-center overflow-hidden whitespace-nowrap break-normal px-1 text-center font-semibold uppercase leading-none tracking-[0.045em]",
         compact
           ? "text-[13px]"
-          : cleanCompany.length > 6
-            ? "text-[1.75rem]"
-            : cleanCompany.length > 4
-              ? "text-[1.65rem]"
-              : "text-[1.5rem]",
+          : cleanCompany.length > 4
+            ? "text-[clamp(.82rem,3.8vw,1.05rem)]"
+            : "text-[clamp(1.05rem,5vw,1.4rem)]",
         className,
       )}
     >

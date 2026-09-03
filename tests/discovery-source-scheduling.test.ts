@@ -50,6 +50,25 @@ describe("per-source discovery scheduling", () => {
     expect(selected.map(({ id }) => id)).toEqual(["never", "oldest"]);
   });
 
+  it("checks a newly connected source before stale never-attempted and attempted backlog", () => {
+    const selected = selectDueJobSources(
+      [
+        source("stale-never"),
+        source("old-backlog", {
+          lastAttemptedAt: new Date("2026-08-01T08:00:00.000Z"),
+          lastSucceededAt: new Date("2026-08-01T08:00:00.000Z"),
+        }),
+        source("new-connection", {
+          createdAt: new Date("2026-08-05T15:00:00.000Z"),
+        }),
+      ],
+      NOW,
+      1,
+    );
+
+    expect(selected.map(({ id }) => id)).toEqual(["new-connection"]);
+  });
+
   it("honors success intervals and gives failed sources a bounded retry window", () => {
     const succeeded = source("succeeded", {
       lastAttemptedAt: new Date("2026-08-05T08:00:00.000Z"),

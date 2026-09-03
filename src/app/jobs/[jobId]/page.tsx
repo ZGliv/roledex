@@ -618,7 +618,11 @@ export default async function JobDetailPage({
         </main>
 
         <div className="[&>div]:!border-white/10 [&>div]:!bg-[#0c121f]/95 [&>div]:!shadow-[0_18px_55px_rgba(0,0,0,.45)] [&>div]:!backdrop-blur-2xl [&_a]:!rounded-full [&_a]:!text-[#a9b4c8] [&_button]:!rounded-full [&_button]:!border-white/10 [&_button]:!bg-white/[0.06] [&_button]:!text-[#dbe2ee] [&_button:hover]:!bg-white/[0.1] [&_button:nth-of-type(3)]:!border-[#8176ff] [&_button:nth-of-type(3)]:!bg-[#8176ff] [&_button:nth-of-type(3)]:!text-white">
-          <StandaloneDecisionBar currentDecision={job.currentDecision} jobId={jobId} />
+          <StandaloneDecisionBar
+            currentDecision={job.currentDecision}
+            currentDecisionEventId={job.currentDecisionEventId}
+            jobId={jobId}
+          />
         </div>
       </div>
     </div>

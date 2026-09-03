@@ -155,3 +155,45 @@ export function createAppIconV4(size: number) {
     },
   );
 }
+
+type AppIconV5Options = {
+  maskable?: boolean;
+};
+
+export function createAppIconV5(
+  size: number,
+  { maskable = false }: AppIconV5Options = {},
+) {
+  const glyphSize = maskable ? size * 0.74 : size * 0.92;
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          alignItems: "center",
+          background:
+            "radial-gradient(circle at 62% 26%, rgba(70, 92, 130, 0.18) 0%, rgba(70, 92, 130, 0) 34%), linear-gradient(145deg, #151a22 0%, #0d131c 52%, #070b10 100%)",
+          display: "flex",
+          height: "100%",
+          justifyContent: "center",
+          width: "100%",
+        }}
+      >
+        <JobSwipeGlyph
+          accentColor="#3468ff"
+          foregroundColor="#f3efff"
+          height={glyphSize}
+          width={glyphSize}
+        />
+      </div>
+    ),
+    {
+      width: size,
+      height: size,
+      headers: {
+        ...IMMUTABLE_ICON_HEADERS,
+        "Content-Disposition": `inline; filename="roledex-v5${maskable ? "-maskable" : ""}-${size}.png"`,
+      },
+    },
+  );
+}

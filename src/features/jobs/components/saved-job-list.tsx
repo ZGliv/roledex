@@ -5,10 +5,13 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ArrowUpRight,
   BookmarkCheck,
+  CalendarPlus,
+  CalendarClock,
   Check,
   ChevronDown,
   GitCompareArrows,
   LoaderCircle,
+  Mail,
   MoreHorizontal,
   RotateCcw,
   Search,
@@ -25,11 +28,45 @@ import {
 } from "@/features/jobs/actions";
 import { CompanyMark } from "@/features/jobs/components/company-mark";
 import { companyVisual } from "@/features/jobs/components/company-visual";
+import { saveJobFeedSnapshot } from "@/features/jobs/feed-snapshot";
 import type {
   JobCardDecision,
   JobCardViewModel,
 } from "@/features/jobs/components/job-card";
 import { cn } from "@/lib/utils";
+import { saveApplicationDetailsAction } from "@/features/product/actions";
+import {
+  buildApplicationWorkspace,
+  calendarFileForApplication,
+  suggestedFollowUpDate,
+} from "@/features/jobs/application-workspace";
+
+export type ApplicationDetailsView = {
+  applicationDeadline: string | null;
+  contactEmail: string | null;
+  contactName: string | null;
+  createdAt: string;
+  followUpAt: string | null;
+  jobListingId: string;
+  nextStep: string | null;
+  resumeLabel: string | null;
+  updatedAt: string;
+  visitorId: string;
+};
+
+const NEXT_STEP_PRESETS = [
+  "Tailor résumé",
+  "Ask for a referral",
+  "Submit application",
+  "Follow up",
+  "Prepare for interview",
+] as const;
+const FOLLOW_UP_PRESETS = [
+  { days: 1, label: "Tomorrow" },
+  { days: 3, label: "3 days" },
+  { days: 7, label: "1 week" },
+] as const;
+const INITIAL_VISIBLE_JOB_COUNT = 40;
 
 const PIPELINE_STATUSES = [
   "saved",
@@ -44,8 +81,41 @@ const PIPELINE_STATUSES = [
 ] as const satisfies readonly JobCardDecision[];
 
 type PipelineStatus = (typeof PIPELINE_STATUSES)[number];
-type StatusFilter = "all" | "shortlist" | "learning" | "applications" | "closed";
+type StatusFilter =
+  | "all"
+  | "shortlist"
+  | "learning"
+  | "applications"
+  | "interviews"
+  | "offers"
+  | "closed";
 type SortKey = "fit" | "career" | "salary" | "stretch" | "company";
+
+const STATUS_FILTER_OPTIONS = [
+  { label: "Everything", value: "all" },
+  { label: "Saved", value: "shortlist" },
+  { label: "Learning", value: "learning" },
+  { label: "Applying", value: "applications" },
+  { label: "Interviews", value: "interviews" },
+  { label: "Offers", value: "offers" },
+  { label: "Closed", value: "closed" },
+] as const satisfies readonly { label: string; value: StatusFilter }[];
+
+const ARRANGEMENT_FILTER_OPTIONS = [
+  { label: "Any", value: "all" },
+  { label: "Remote", value: "Remote" },
+  { label: "Hybrid", value: "Hybrid" },
+  { label: "On-site", value: "On-site" },
+  { label: "Not listed", value: "Unclear" },
+] as const;
+
+const SORT_OPTIONS = [
+  { label: "Recommended", value: "fit" },
+  { label: "Career upside", value: "career" },
+  { label: "Highest salary", value: "salary" },
+  { label: "Most realistic", value: "stretch" },
+  { label: "Company A–Z", value: "company" },
+] as const satisfies readonly { label: string; value: SortKey }[];
 
 const STATUS_META: Record<PipelineStatus, { label: string }> = {
   saved: { label: "Saved" },
@@ -100,6 +170,8 @@ function statusMatches(decision: PipelineStatus, filter: StatusFilter) {
   if (filter === "applications") {
     return ["apply", "applied", "interview", "offer"].includes(decision);
   }
+  if (filter === "interviews") return decision === "interview";
+  if (filter === "offers") return decision === "offer";
   return decision === "rejected" || decision === "archived";
 }
 
@@ -145,6 +217,181 @@ function decisionBrief(job: JobCardViewModel) {
   return primary?.trim() || job.verdictExplanation.trim();
 }
 
+function dateInputValue(value: string | null) {
+  return value ? value.slice(0, 10) : "";
+}
+
+function dateTimeInputValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function ApplicationDetailsEditor({
+  initialValue,
+  jobId,
+  jobTitle,
+  company,
+  sourceUrl,
+  onSaved,
+}: {
+  initialValue: ApplicationDetailsView | null;
+  jobId: string;
+  jobTitle: string;
+  company: string;
+  sourceUrl: string | null;
+  onSaved: (value: ApplicationDetailsView) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const [deadline, setDeadline] = useState(dateInputValue(initialValue?.applicationDeadline ?? null));
+  const [followUpAt, setFollowUpAt] = useState(dateTimeInputValue(initialValue?.followUpAt ?? null));
+  const [contactName, setContactName] = useState(initialValue?.contactName ?? "");
+  const [contactEmail, setContactEmail] = useState(initialValue?.contactEmail ?? "");
+  const [resumeLabel, setResumeLabel] = useState(initialValue?.resumeLabel ?? "");
+  const [nextStep, setNextStep] = useState(initialValue?.nextStep ?? "");
+
+  const inputClass =
+    "h-11 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-base text-[#e9edf4] outline-none placeholder:text-[#69758a] focus:border-[#8176ff]/45 focus:ring-2 focus:ring-[#8176ff]/18 sm:text-sm";
+
+  function setFollowUpDays(days: number) {
+    const date = suggestedFollowUpDate(days);
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    setFollowUpAt(local.toISOString().slice(0, 16));
+  }
+
+  function downloadCalendar() {
+    const calendar = calendarFileForApplication({
+      company,
+      deadline: deadline || null,
+      followUpAt: followUpAt ? new Date(followUpAt).toISOString() : null,
+      jobTitle,
+      nextStep: nextStep || null,
+      sourceUrl,
+    });
+    if (!calendar) {
+      setMessage("Add an apply-by date or follow-up first.");
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([calendar], { type: "text/calendar" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${company}-${jobTitle}-follow-up`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") + ".ics";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setMessage("Calendar reminder downloaded.");
+  }
+
+  function save() {
+    setMessage(null);
+    startTransition(async () => {
+      try {
+        const localFollowUp = followUpAt ? new Date(followUpAt).toISOString() : null;
+        const result = await saveApplicationDetailsAction({
+          applicationDeadline: deadline || null,
+          contactEmail: contactEmail || null,
+          contactName: contactName || null,
+          followUpAt: localFollowUp,
+          jobListingId: jobId,
+          nextStep: nextStep || null,
+          resumeLabel: resumeLabel || null,
+        });
+        if (!result.ok) {
+          setMessage(result.message);
+          return;
+        }
+        const now = new Date().toISOString();
+        onSaved({
+          applicationDeadline: deadline ? `${deadline}T12:00:00.000Z` : null,
+          contactEmail: contactEmail || null,
+          contactName: contactName || null,
+          createdAt: initialValue?.createdAt ?? now,
+          followUpAt: localFollowUp,
+          jobListingId: jobId,
+          nextStep: nextStep || null,
+          resumeLabel: resumeLabel || null,
+          updatedAt: now,
+          visitorId: initialValue?.visitorId ?? "current",
+        });
+        setMessage(result.message);
+      } catch {
+        setMessage("The plan could not be saved. Your edits are still here.");
+      }
+    });
+  }
+
+  return (
+    <div className="rounded-[1rem] border border-white/[0.09] bg-black/[0.1] p-3.5">
+      <div className="flex items-center gap-2">
+        <CalendarClock className="size-4 text-[#a49cff]" aria-hidden="true" />
+        <h3 className="text-sm font-semibold text-[#e7ebf3]">Application plan</h3>
+      </div>
+      <p className="mt-1 text-[11px] leading-5 text-[#7f8ba1]">Keep the next action for {jobTitle} visible.</p>
+      <fieldset disabled={pending} className="mt-3 grid gap-3 disabled:opacity-65 sm:grid-cols-2">
+        <label className="text-xs font-medium text-[#8e99ac]">
+          Apply by
+          <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} className={`${inputClass} mt-1`} />
+        </label>
+        <div>
+          <label className="text-xs font-medium text-[#8e99ac]">
+            Follow up
+            <input type="datetime-local" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} className={`${inputClass} mt-1`} />
+          </label>
+          <div className="mt-1.5 flex gap-1.5" aria-label="Quick follow-up times">
+            {FOLLOW_UP_PRESETS.map((preset) => (
+              <button key={preset.label} type="button" onClick={() => setFollowUpDays(preset.days)} className="min-h-11 rounded-lg border border-white/[0.08] px-3 text-[11px] font-semibold text-[#98a4b8] hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8176ff]/35">
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="text-xs font-medium text-[#8e99ac]">
+          Contact
+          <input value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="Name" className={`${inputClass} mt-1`} />
+        </label>
+        <label className="text-xs font-medium text-[#8e99ac]">
+          Contact email
+          <input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} placeholder="name@company.com" className={`${inputClass} mt-1`} />
+        </label>
+        <label className="text-xs font-medium text-[#8e99ac] sm:col-span-2">
+          Résumé version
+          <input value={resumeLabel} onChange={(event) => setResumeLabel(event.target.value)} placeholder="Primary résumé" className={`${inputClass} mt-1`} />
+        </label>
+        <label className="text-xs font-medium text-[#8e99ac] sm:col-span-2">
+          Next step
+          <input value={nextStep} onChange={(event) => setNextStep(event.target.value)} placeholder="Ask Jordan for a referral" className={`${inputClass} mt-1`} />
+        </label>
+        <div className="flex flex-wrap gap-1.5 sm:col-span-2" aria-label="Suggested next steps">
+          {NEXT_STEP_PRESETS.map((preset) => (
+            <button key={preset} type="button" onClick={() => setNextStep(preset)} className="min-h-11 rounded-full border border-white/[0.08] bg-white/[0.025] px-3.5 text-[11px] font-semibold text-[#98a4b8] hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8176ff]/35">
+              {preset}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" className="h-11" disabled={pending} onClick={save}>
+          {pending ? <LoaderCircle className="animate-spin" /> : <Check />}
+          Save plan
+        </Button>
+        <Button type="button" variant="outline" size="sm" className="h-11 border-white/10 bg-white/[0.04] text-[#aab4c6]" disabled={pending} onClick={downloadCalendar}>
+          <CalendarPlus /> Add to calendar
+        </Button>
+        {contactEmail ? (
+          <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`${jobTitle} at ${company}`)}`} className="inline-flex h-11 items-center gap-2 rounded-lg px-3 text-[11px] font-semibold text-[#aaa3ff] outline-none hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-[#8176ff]/35">
+            <Mail className="size-3.5" aria-hidden="true" /> Email contact
+          </a>
+        ) : null}
+        {message ? <p role="status" className="w-full text-[11px] text-[#91a0b6]">{message}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function displayLocation(job: JobCardViewModel) {
   const arrangement = job.workArrangement.toLocaleLowerCase("en-US");
   const locationParts = job.location
@@ -164,6 +411,33 @@ function careerValueLabel(score: number) {
   if (score >= 6) return "Solid career upside";
   if (score >= 4.5) return "Moderate career upside";
   return "Limited career upside";
+}
+
+function FilterChoice({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "saved-filter-choice relative inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold outline-none transition-[color,background-color,border-color,box-shadow,transform] duration-200 focus-visible:ring-3 focus-visible:ring-[#8176ff]/25 active:scale-[0.98]",
+        active
+          ? "border-[#9a91ff]/35 bg-[#8176ff]/16 text-[#f4f2ff] shadow-[inset_0_1px_0_rgba(255,255,255,.14),0_7px_20px_rgba(62,51,144,.16)]"
+          : "border-white/[0.08] bg-white/[0.035] text-[#96a1b5] hover:border-white/[0.14] hover:bg-white/[0.07] hover:text-[#e5e9f2]",
+      )}
+    >
+      {active ? <Check className="size-3.5 text-[#aaa3ff]" aria-hidden="true" /> : null}
+      {label}
+    </button>
+  );
 }
 
 function ComparisonPanel({
@@ -263,13 +537,113 @@ function ComparisonPanel({
   );
 }
 
-export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] }) {
+function ApplicationCommandCenter({
+  view,
+  onFilter,
+  onOpenJob,
+}: {
+  view: ReturnType<typeof buildApplicationWorkspace>;
+  onFilter: (filter: StatusFilter) => void;
+  onOpenJob: (jobId: string) => void;
+}) {
+  const pipeline = [
+    { count: view.counts.shortlist, filter: "shortlist", label: "Shortlist" },
+    { count: view.counts.applying, filter: "applications", label: "Applying" },
+    { count: view.counts.interviews, filter: "interviews", label: "Interviews" },
+    { count: view.counts.offers, filter: "offers", label: "Offers" },
+  ] as const;
+  const visibleActions = view.actions.slice(0, 4);
+
+  return (
+    <section className="saved-action-center mb-4 overflow-hidden rounded-[1.25rem] border border-white/[0.1] bg-[linear-gradient(145deg,rgba(27,34,51,.9),rgba(13,18,30,.94))] shadow-[0_20px_60px_rgba(0,3,12,.26),inset_0_1px_0_rgba(255,255,255,.08)]">
+      <div className="flex items-start justify-between gap-4 px-4 pb-3 pt-4 sm:px-5">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#8d98ac]">
+            Next up
+          </p>
+          <h2 className="mt-1 text-lg font-semibold tracking-[-0.03em] text-[#f5f7fb]">
+            {view.urgentCount > 0
+              ? `${view.urgentCount} ${view.urgentCount === 1 ? "action needs" : "actions need"} you`
+              : "Your search is under control"}
+          </h2>
+        </div>
+        {view.actions.length > visibleActions.length ? (
+          <span className="shrink-0 rounded-full border border-white/[0.08] px-2.5 py-1 text-[10px] font-semibold text-[#8f9aae]">
+            +{view.actions.length - visibleActions.length} later
+          </span>
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-4 border-y border-white/[0.07] bg-black/[0.1]">
+        {pipeline.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => onFilter(item.filter)}
+            className="min-h-[4.25rem] border-r border-white/[0.07] px-1.5 text-center outline-none last:border-r-0 hover:bg-white/[0.045] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8176ff]/40"
+            aria-label={`Show ${item.count} ${item.label.toLowerCase()} jobs`}
+          >
+            <span className="block text-lg font-semibold tabular-nums text-[#f3f5fa]">{item.count}</span>
+            <span className="mt-0.5 block text-[10px] font-medium text-[#7f8a9d]">{item.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {visibleActions.length > 0 ? (
+        <ol className="divide-y divide-white/[0.07]">
+          {visibleActions.map((action) => (
+            <li key={`${action.jobId}-${action.kind}`}>
+              <button
+                type="button"
+                onClick={() => onOpenJob(action.jobId)}
+                className="group flex min-h-[4.65rem] w-full items-center gap-3 px-4 py-3 text-left outline-none hover:bg-white/[0.035] focus-visible:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8176ff]/35 sm:px-5"
+              >
+                <span
+                  className={cn(
+                    "size-2 shrink-0 rounded-full",
+                    action.priority <= 1 ? "bg-[#ff8d9d] shadow-[0_0_14px_rgba(255,109,132,.5)]" : "bg-[#8f87ff]",
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold text-[#eef1f7]">{action.label}</span>
+                  <span className="mt-0.5 block truncate text-[11px] text-[#7f8a9d]">
+                    {action.company} · {action.description}
+                  </span>
+                </span>
+                <ArrowUpRight className="size-4 shrink-0 text-[#737e91] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[#b2abff]" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="px-4 py-4 text-[12px] leading-5 text-[#8f9aae] sm:px-5">
+          Nothing is time-sensitive. Add a next step or follow-up to any role and it will appear here.
+        </p>
+      )}
+    </section>
+  );
+}
+
+export function SavedJobList({
+  initialApplicationDetails,
+  initialJobs,
+  reminderNotificationsEnabled,
+}: {
+  initialApplicationDetails: ApplicationDetailsView[];
+  initialJobs: JobCardViewModel[];
+  reminderNotificationsEnabled: boolean;
+}) {
   const [jobs, setJobs] = useState(initialJobs);
+  const [applicationDetails, setApplicationDetails] = useState(
+    () => new Map(initialApplicationDetails.map((details) => [details.jobListingId, details])),
+  );
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [arrangement, setArrangement] = useState("all");
   const [sort, setSort] = useState<SortKey>("fit");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE_JOB_COUNT);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [noteEditor, setNoteEditor] = useState<{
     draft: string;
@@ -283,8 +657,36 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    saveJobFeedSnapshot("saved", jobs);
+  }, [jobs]);
+
+  useEffect(() => {
     if (noteEditor.jobId) noteInputRef.current?.focus();
   }, [noteEditor.jobId]);
+
+  useEffect(() => {
+    if (
+      !reminderNotificationsEnabled ||
+      !("Notification" in window) ||
+      Notification.permission !== "granted"
+    ) {
+      return;
+    }
+    const now = Date.now();
+    const due = initialApplicationDetails.find((details) => {
+      if (!details.followUpAt) return false;
+      const followUp = new Date(details.followUpAt).getTime();
+      return followUp <= now && followUp >= now - 24 * 60 * 60_000;
+    });
+    if (!due) return;
+    const job = initialJobs.find((candidate) => candidate.id === due.jobListingId);
+    if (!job) return;
+    const notification = new Notification(`Follow up on ${job.company}`, {
+      body: due.nextStep || job.title,
+      tag: `jobswipe-follow-up-${job.id}`,
+    });
+    return () => notification.close();
+  }, [initialApplicationDetails, initialJobs, reminderNotificationsEnabled]);
 
   const visibleJobs = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -306,6 +708,11 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
     () => compareIds.flatMap((id) => jobs.find((job) => job.id === id) ?? []),
     [compareIds, jobs],
   );
+  const applicationWorkspace = useMemo(
+    () => buildApplicationWorkspace(jobs, applicationDetails),
+    [applicationDetails, jobs],
+  );
+  const renderedJobs = visibleJobs.slice(0, visibleLimit);
 
   const activeFilterCount =
     Number(statusFilter !== "all") +
@@ -319,6 +726,20 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
     setStatusFilter("all");
     setArrangement("all");
     setSort("fit");
+  }
+
+  function openWorkspaceJob(jobId: string) {
+    setQuery("");
+    setStatusFilter("all");
+    setArrangement("all");
+    setVisibleLimit(jobs.length);
+    requestAnimationFrame(() => {
+      const element = document.getElementById(`saved-job-${jobId}`);
+      const details = element?.querySelector("details");
+      if (details instanceof HTMLDetailsElement) details.open = true;
+      element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => element?.focus({ preventScroll: true }), 350);
+    });
   }
 
   function runJobAction(jobId: string, action: () => Promise<void>) {
@@ -343,9 +764,13 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
 
   function restore(jobId: string) {
     runJobAction(jobId, async () => {
-      const expectedDecision = jobs.find((job) => job.id === jobId)?.currentDecision;
-      if (!expectedDecision) throw new Error("This saved job is no longer available.");
-      const result = await restoreJobToDeckAction(jobId, expectedDecision);
+      const job = jobs.find((candidate) => candidate.id === jobId);
+      if (!job) throw new Error("This saved job is no longer available.");
+      const result = await restoreJobToDeckAction(
+        jobId,
+        job.currentDecision,
+        job.currentDecisionEventId,
+      );
       if (!result.ok) throw new Error(result.message);
       setJobs((current) => current.filter((job) => job.id !== jobId));
       setCompareIds((current) => current.filter((id) => id !== jobId));
@@ -356,13 +781,24 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
 
   function updateStatus(jobId: string, status: PipelineStatus) {
     runJobAction(jobId, async () => {
-      const expectedDecision = jobs.find((job) => job.id === jobId)?.currentDecision;
-      if (!expectedDecision) throw new Error("This saved job is no longer available.");
-      const result = await updateJobStatusAction(jobId, status, expectedDecision);
+      const selectedJob = jobs.find((job) => job.id === jobId);
+      if (!selectedJob) throw new Error("This saved job is no longer available.");
+      const result = await updateJobStatusAction(
+        jobId,
+        status,
+        selectedJob.currentDecision,
+        selectedJob.currentDecisionEventId,
+      );
       if (!result.ok) throw new Error(result.message);
       setJobs((current) =>
         current.map((job) =>
-          job.id === jobId ? { ...job, currentDecision: status } : job,
+          job.id === jobId
+            ? {
+                ...job,
+                currentDecision: status,
+                currentDecisionEventId: result.value.decisionEventId,
+              }
+            : job,
         ),
       );
       setMessage(`Status changed to ${STATUS_META[status].label.toLowerCase()}.`);
@@ -425,6 +861,14 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
         </section>
       ) : (
         <>
+          <ApplicationCommandCenter
+            view={applicationWorkspace}
+            onFilter={(filter) => {
+              setStatusFilter(filter);
+              setQuery("");
+            }}
+            onOpenJob={openWorkspaceJob}
+          />
           <section
             className="editorial-dark-surface mb-5 rounded-[1.25rem] p-2.5"
             aria-label="Search and filter saved jobs"
@@ -464,71 +908,101 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
                     {activeFilterCount}
                   </span>
                 ) : null}
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 transition-transform duration-200",
+                    filtersOpen && "rotate-180",
+                  )}
+                  aria-hidden="true"
+                />
               </button>
             </div>
 
             {filtersOpen ? (
               <div
                 id="saved-job-filters"
-                className="mt-2 grid gap-2 border-t border-white/[0.08] px-1 pb-1 pt-3 sm:grid-cols-3"
+                className="saved-filter-panel relative mt-2 overflow-hidden rounded-[1.05rem] border border-white/[0.1] px-3 pb-3 pt-2.5 shadow-[0_20px_50px_rgba(0,3,12,.32),inset_0_1px_0_rgba(255,255,255,.08)] sm:px-4 sm:pb-4 sm:pt-3.5"
               >
-                <label className="space-y-1.5">
-                  <span className="px-1 text-xs font-medium text-[#8e99ae]">
-                    Stage
+                <div className="relative flex min-h-9 items-center gap-2 border-b border-white/[0.07] pb-2.5">
+                  <span className="grid size-7 place-items-center rounded-lg border border-[#8176ff]/20 bg-[#8176ff]/10 text-[#aaa3ff]">
+                    <SlidersHorizontal className="size-3.5" aria-hidden="true" />
                   </span>
-                  <select
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                    className="h-11 w-full rounded-xl border border-white/10 bg-[#111725] px-3 text-base font-medium text-[#e6eaf3] outline-none focus:ring-2 focus:ring-[#8176ff]/25 sm:text-sm"
-                  >
-                    <option value="all">All stages</option>
-                    <option value="shortlist">Saved & stretch</option>
-                    <option value="learning">Learn first</option>
-                    <option value="applications">Applications</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                </label>
-                <label className="space-y-1.5">
-                  <span className="px-1 text-xs font-medium text-[#8e99ae]">
-                    Work style
-                  </span>
-                  <select
-                    value={arrangement}
-                    onChange={(event) => setArrangement(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/10 bg-[#111725] px-3 text-base font-medium text-[#e6eaf3] outline-none focus:ring-2 focus:ring-[#8176ff]/25 sm:text-sm"
-                  >
-                    <option value="all">Any work style</option>
-                    <option value="Remote">Remote</option>
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="On-site">On-site</option>
-                    <option value="Unclear">Unclear</option>
-                  </select>
-                </label>
-                <label className="space-y-1.5">
-                  <span className="px-1 text-xs font-medium text-[#8e99ae]">
-                    Order
-                  </span>
-                  <select
-                    value={sort}
-                    onChange={(event) => setSort(event.target.value as SortKey)}
-                    className="h-11 w-full rounded-xl border border-white/10 bg-[#111725] px-3 text-base font-medium text-[#e6eaf3] outline-none focus:ring-2 focus:ring-[#8176ff]/25 sm:text-sm"
-                  >
-                    <option value="fit">Recommended</option>
-                    <option value="career">Career value</option>
-                    <option value="salary">Highest salary</option>
-                    <option value="stretch">Most realistic</option>
-                    <option value="company">Company</option>
-                  </select>
-                </label>
-                {activeFilterCount > 0 ? (
+                  <p className="text-[13px] font-semibold tracking-[-0.01em] text-[#e9ecf4]">
+                    Refine saved roles
+                  </p>
+                  {activeFilterCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="ml-auto min-h-8 rounded-lg px-2 text-[11px] font-semibold text-[#aaa3ff] outline-none transition hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-[#8176ff]/30"
+                    >
+                      Reset
+                    </button>
+                  ) : (
+                    <span className="ml-auto text-[11px] text-[#707b90]">Optional</span>
+                  )}
                   <button
                     type="button"
-                    onClick={resetFilters}
-                    className="justify-self-start rounded-lg px-2 py-1 text-xs font-semibold text-[#aaa3ff] hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8176ff]/30 sm:col-span-3"
+                    onClick={() => setFiltersOpen(false)}
+                    aria-label="Close filters"
+                    className="grid size-8 place-items-center rounded-lg text-[#7f8a9e] outline-none transition hover:bg-white/[0.07] hover:text-white focus-visible:ring-2 focus-visible:ring-[#8176ff]/30"
                   >
-                    Reset filters
+                    <X className="size-3.5" aria-hidden="true" />
                   </button>
-                ) : null}
+                </div>
+
+                <div className="relative divide-y divide-white/[0.07]">
+                  <fieldset className="py-3.5">
+                    <legend className="mb-2.5 flex w-full items-center justify-between px-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#778399]">
+                      Stage
+                      <span className="normal-case tracking-normal text-[#626d81]">Where it stands</span>
+                    </legend>
+                    <div className="flex flex-wrap gap-1.5">
+                      {STATUS_FILTER_OPTIONS.map((option) => (
+                        <FilterChoice
+                          key={option.value}
+                          active={statusFilter === option.value}
+                          label={option.label}
+                          onClick={() => setStatusFilter(option.value)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="py-3.5">
+                    <legend className="mb-2.5 flex w-full items-center justify-between px-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#778399]">
+                      Work style
+                      <span className="normal-case tracking-normal text-[#626d81]">Where you work</span>
+                    </legend>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ARRANGEMENT_FILTER_OPTIONS.map((option) => (
+                        <FilterChoice
+                          key={option.value}
+                          active={arrangement === option.value}
+                          label={option.label}
+                          onClick={() => setArrangement(option.value)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="pt-3.5">
+                    <legend className="mb-2.5 flex w-full items-center justify-between px-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#778399]">
+                      Sort
+                      <span className="normal-case tracking-normal text-[#626d81]">What comes first</span>
+                    </legend>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SORT_OPTIONS.map((option) => (
+                        <FilterChoice
+                          key={option.value}
+                          active={sort === option.value}
+                          label={option.label}
+                          onClick={() => setSort(option.value)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+                </div>
               </div>
             ) : null}
           </section>
@@ -588,7 +1062,7 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
             </section>
           ) : (
             <div className="editorial-dark-surface overflow-hidden rounded-[1.35rem]">
-              {visibleJobs.map((job) => {
+              {renderedJobs.map((job) => {
                 const visual = companyVisual(job.company);
                 const status = isPipelineStatus(job.currentDecision)
                   ? job.currentDecision
@@ -599,7 +1073,9 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
                 return (
                   <article
                     key={job.id}
-                    className="saved-job-listing relative overflow-hidden border-b border-white/[0.09] bg-transparent transition-[background-color] duration-200 last:border-b-0 hover:bg-white/[0.035]"
+                    id={`saved-job-${job.id}`}
+                    tabIndex={-1}
+                    className="saved-job-listing relative overflow-hidden border-b border-white/[0.09] bg-transparent transition-[background-color] duration-200 last:border-b-0 hover:bg-white/[0.035] [content-visibility:auto] [contain-intrinsic-size:110px]"
                   >
                     <div className="flex min-h-[6.75rem] items-center gap-3.5 px-4 py-3.5 pr-14 sm:px-5 sm:pr-16">
                       <div
@@ -742,6 +1218,21 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
                           ) : null}
                         </div>
 
+                        <ApplicationDetailsEditor
+                          initialValue={applicationDetails.get(job.id) ?? null}
+                          jobId={job.id}
+                          jobTitle={job.title}
+                          company={job.company}
+                          sourceUrl={job.sourceUrl}
+                          onSaved={(details) =>
+                            setApplicationDetails((current) => {
+                              const next = new Map(current);
+                              next.set(job.id, details);
+                              return next;
+                            })
+                          }
+                        />
+
                         {noteEditor.jobId === job.id ? (
                           <div className="flex flex-col gap-2 sm:flex-row">
                             <label className="min-w-0 flex-1">
@@ -782,6 +1273,15 @@ export function SavedJobList({ initialJobs }: { initialJobs: JobCardViewModel[] 
                   </article>
                 );
               })}
+              {renderedJobs.length < visibleJobs.length ? (
+                <button
+                  type="button"
+                  onClick={() => setVisibleLimit((current) => current + INITIAL_VISIBLE_JOB_COUNT)}
+                  className="min-h-12 w-full border-t border-white/[0.08] px-4 text-[12px] font-semibold text-[#aaa3ff] outline-none hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8176ff]/35"
+                >
+                  Show {Math.min(INITIAL_VISIBLE_JOB_COUNT, visibleJobs.length - renderedJobs.length)} more
+                </button>
+              ) : null}
             </div>
           )}
         </>

@@ -1,8 +1,41 @@
+import type {
+  CandidateProfile,
+  CandidateSeniorityLevel,
+} from "@/db/schema";
 import type { DiscoveryJob } from "@/features/discovery/types";
 
 export type DiscoveryCandidateProfile = {
+  desiredSeniorityLevels?: readonly CandidateSeniorityLevel[];
   location: string | null;
   targetRoleFamilies: readonly string[];
+  yearsExperience?: number;
+};
+
+/**
+ * Shared scheduled ingestion must represent the launch market, not whichever
+ * individual happens to own the deployment. Personal refreshes may still use
+ * the initiating profile, while the cron spends its bounded import budget on
+ * realistic US technical-career-mover inventory.
+ */
+export const TECHNICAL_CAREER_MOVER_DISCOVERY_PROFILE: DiscoveryCandidateProfile = {
+  desiredSeniorityLevels: ["entry", "mid"],
+  location: null,
+  targetRoleFamilies: [
+    "Implementation Specialist",
+    "Implementation Consultant",
+    "Health-tech Implementation",
+    "AI Enablement",
+    "AI Operations",
+    "Product Operations",
+    "Technical Customer Success",
+    "Business Systems Analyst",
+    "Automation Analyst",
+    "Associate Solutions Consultant",
+    "Associate Solutions Engineer",
+    "Associate Product Manager",
+    "Technical Product Specialist",
+  ],
+  yearsExperience: 2,
 };
 
 const TITLE_SIGNALS: ReadonlyArray<readonly [RegExp, number]> = [
@@ -29,7 +62,8 @@ const TITLE_SIGNALS: ReadonlyArray<readonly [RegExp, number]> = [
   [/\bcoordinator\b/i, 2],
 ];
 
-const SENIOR_TITLE = /\b(?:senior|sr\.?|staff|principal|director|head|vice president|vp)\b/i;
+const SENIOR_TITLE =
+  /\b(?:senior|sr\.?|staff|principal|lead|director|head|vice president|vp)\b/i;
 const ENTRY_TITLE = /\b(?:junior|jr\.?|entry|associate|coordinator|specialist|analyst)\b/i;
 const GENERIC_PRODUCT_MANAGER_TITLE = /\bproduct manager\b/i;
 const CLEARLY_UNRELATED_TITLE =
@@ -62,9 +96,13 @@ function targetTokenScore(title: string, roleFamilies: readonly string[]) {
 function locationScore(job: DiscoveryJob, profile: DiscoveryCandidateProfile) {
   const location = job.location?.toLowerCase() ?? "";
   const home = profile.location?.toLowerCase() ?? "";
-  if (job.workArrangement === "remote") return 2;
-  if (location.includes("pittsburgh") || location.includes("pennsylvania")) return 2;
-  if (home && location && home.split(",")[0] && location.includes(home.split(",")[0])) return 2;
+  if (!home) return 0;
+  if (/\bremote\b/.test(home)) {
+    return job.workArrangement === "remote" ? 2 : 0;
+  }
+  const homeCity = home.split(",")[0]?.trim();
+  if (homeCity && location.includes(homeCity)) return 2;
+  if (job.workArrangement === "remote") return 1;
   if (job.workArrangement === "hybrid" && location) return -2;
   if (job.workArrangement === "on_site" && location) return -3;
   return 0;
@@ -73,6 +111,23 @@ function locationScore(job: DiscoveryJob, profile: DiscoveryCandidateProfile) {
 function isClearlyOutsideUnitedStates(job: DiscoveryJob) {
   const location = job.location ?? "";
   return CLEARLY_FOREIGN_LOCATION.test(location) && !UNITED_STATES_LOCATION.test(location);
+}
+
+export function buildDiscoveryCandidateProfile(
+  profile: Pick<
+    CandidateProfile,
+    | "desiredSeniorityLevels"
+    | "location"
+    | "targetRoleFamilies"
+    | "yearsExperience"
+  >,
+): DiscoveryCandidateProfile {
+  return {
+    desiredSeniorityLevels: [...profile.desiredSeniorityLevels],
+    location: profile.location,
+    targetRoleFamilies: [...profile.targetRoleFamilies],
+    yearsExperience: profile.yearsExperience,
+  };
 }
 
 /**
@@ -93,7 +148,7 @@ export function isDiscoveryImportCandidate(job: DiscoveryJob) {
  * A profile-neutral quality signal used only to spend the bounded import
  * budget. It favors complete, actionable cards without favoring a profession.
  */
-export function scoreDiscoveryImportPriority(job: DiscoveryJob) {
+function scoreDiscoveryListingQuality(job: DiscoveryJob) {
   let score = 0;
   if (job.workArrangement === "remote") score += 2;
   else if (job.workArrangement === "hybrid") score += 1;
@@ -111,6 +166,47 @@ export function scoreDiscoveryImportPriority(job: DiscoveryJob) {
   return score;
 }
 
+/**
+ * Spend the bounded import budget on the profile that initiated the refresh.
+ * Catalog admission stays broad and shared; this only changes which public
+ * listings are parsed first when a source batch is larger than the budget.
+ */
+export function scoreDiscoveryImportPriority(
+  job: DiscoveryJob,
+  profile?: DiscoveryCandidateProfile | null,
+) {
+  const quality = scoreDiscoveryListingQuality(job);
+  if (!profile || profile.targetRoleFamilies.length === 0) return quality;
+  return quality + scoreDiscoveryRelevance(job, profile) * 4;
+}
+
+function targetsEarlyCareer(profile: DiscoveryCandidateProfile) {
+  const desired = profile.desiredSeniorityLevels ?? [];
+  if (desired.length > 0) {
+    return desired.every((level) =>
+      ["intern", "entry", "mid"].includes(level),
+    );
+  }
+  return (profile.yearsExperience ?? 0) < 5;
+}
+
+function targetsSeniorCareer(profile: DiscoveryCandidateProfile) {
+  const desired = profile.desiredSeniorityLevels ?? [];
+  if (desired.length > 0) {
+    return desired.some((level) =>
+      [
+        "senior",
+        "staff",
+        "principal",
+        "manager",
+        "director",
+        "executive",
+      ].includes(level),
+    );
+  }
+  return (profile.yearsExperience ?? 0) >= 5;
+}
+
 export function scoreDiscoveryRelevance(
   job: DiscoveryJob,
   profile: DiscoveryCandidateProfile,
@@ -121,8 +217,14 @@ export function scoreDiscoveryRelevance(
   for (const [pattern, weight] of TITLE_SIGNALS) {
     if (pattern.test(title)) score += weight;
   }
-  if (ENTRY_TITLE.test(title)) score += 2;
-  if (SENIOR_TITLE.test(title)) score -= 5;
+  if (ENTRY_TITLE.test(title)) score += targetsEarlyCareer(profile) ? 3 : 1;
+  if (SENIOR_TITLE.test(title)) {
+    score += targetsSeniorCareer(profile)
+      ? 2
+      : targetsEarlyCareer(profile)
+        ? -12
+        : -7;
+  }
   // The candidate is targeting associate product roles, not unqualified generic
   // PM openings. Those can still surface when the title carries an entry signal.
   if (GENERIC_PRODUCT_MANAGER_TITLE.test(title) && !ENTRY_TITLE.test(title)) score -= 5;

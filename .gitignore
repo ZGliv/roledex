@@ -20,11 +20,23 @@
 
 # production
 /build
+/mobile/dist/
+/mobile/dist/
 
 # local database
 /data/
 *.db-shm
 *.db-wal
+
+# local job-search workspace and generated media
+/Job Search HQ/
+/grok-bot-setup/
+/output/
+/tmp/
+/resume-viewer.html
+/APPLY_SHORTLIST_*.md
+/CLAUDE_JOB_SEARCH_*.md
+/MASTER_EVIDENCE_INVENTORY.md
 
 # misc
 .DS_Store

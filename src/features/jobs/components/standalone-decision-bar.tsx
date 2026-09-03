@@ -19,21 +19,32 @@ const labels: Record<DeckDecision, string> = {
 
 export function StandaloneDecisionBar({
   currentDecision,
+  currentDecisionEventId,
   jobId,
 }: {
   currentDecision: JobCardDecision;
+  currentDecisionEventId: string | null;
   jobId: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [decisionState, setDecisionState] = useState(currentDecision);
+  const [decisionEventId, setDecisionEventId] = useState(
+    currentDecisionEventId,
+  );
 
   function decide(decision: DeckDecision) {
     startTransition(async () => {
       try {
-        const result = await decideJobAction(jobId, decision, decisionState);
+        const result = await decideJobAction(
+          jobId,
+          decision,
+          decisionState,
+          decisionEventId,
+        );
         if (!result.ok) throw new Error(result.message);
         setDecisionState(decision);
+        setDecisionEventId(result.value.decisionEventId);
         setMessage(labels[decision]);
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "The decision could not be saved.");
@@ -44,9 +55,15 @@ export function StandaloneDecisionBar({
   function planToApply() {
     startTransition(async () => {
       try {
-        const result = await updateJobStatusAction(jobId, "apply", decisionState);
+        const result = await updateJobStatusAction(
+          jobId,
+          "apply",
+          decisionState,
+          decisionEventId,
+        );
         if (!result.ok) throw new Error(result.message);
         setDecisionState("apply");
+        setDecisionEventId(result.value.decisionEventId);
         setMessage("Moved to your application pipeline");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "The status could not be saved.");

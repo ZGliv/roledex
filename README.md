@@ -1,6 +1,6 @@
-# JobSwipe
+# RoleDex (JobSwipe)
 
-JobSwipe is a guest-first job discovery product. Anyone with the link can browse a continuously refreshed feed, tune a profile, and keep or pass on jobs without an access key. A signed browser session keeps each visitor's profile, saves, passes, notes, and fit results separate from everyone else's.
+RoleDex is a guest-first job discovery product built around a fast, card-based "job swipe" experience. Anyone with the link can browse a continuously refreshed feed, tune a profile, and keep or pass on jobs without an access key. A signed browser session keeps each visitor's profile, saves, passes, notes, and fit results separate from everyone else's.
 
 The first working slice covers the complete path from official employer feeds to a durable decision:
 
@@ -45,6 +45,15 @@ npm run dev -- --port 3100
 
 Open [http://localhost:3100](http://localhost:3100).
 
+For the mobile proof of concept, run the web API and phone client in separate terminals:
+
+```bash
+npm run dev
+npm run mobile:dev
+```
+
+Open [http://localhost:4173](http://localhost:4173). The mobile client uses a lightweight local demo deck when the API is unavailable, so swipe, save, shortlist, and status interactions remain presentable during a demo. Build and sync the bundled iOS client with `npm run mobile:sync`.
+
 The default database is `data/jobswipe.db`. The `data/` directory is ignored by Git. Change `DATABASE_URL` in `.env.local` to keep the database elsewhere.
 
 ## Stable Vercel app and scheduled refreshes
@@ -71,6 +80,9 @@ npm run build        # Create a production build
 npm run lint         # Run ESLint
 npm run test         # Run the unit test suite once
 npm run test:watch   # Run tests in watch mode
+npm run mobile:dev   # Run the mobile proof of concept
+npm run mobile:build # Build the bundled mobile client
+npm run mobile:sync  # Build and sync the Capacitor iOS project
 npm run db:generate  # Generate a migration after schema changes
 npm run db:migrate   # Apply committed migrations
 npm run db:seed      # Idempotently seed the profile and projects

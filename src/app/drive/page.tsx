@@ -27,6 +27,7 @@ export default async function DrivePage() {
     .map((job) => ({
       company: job.company,
       currentDecision: job.currentDecision,
+      currentDecisionEventId: job.currentDecisionEventId,
       deterministicFitCoverage: job.deterministicFitCoverage,
       deterministicFitScore: job.deterministicFitScore,
       id: job.id,

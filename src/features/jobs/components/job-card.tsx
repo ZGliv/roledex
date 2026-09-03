@@ -31,6 +31,7 @@ import {
   ProgressLabel,
 } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import type { JobFeatureSnapshot } from "@/features/jobs/feature-snapshot";
 import { cn } from "@/lib/utils";
 
 import {
@@ -116,6 +117,8 @@ export interface JobCardViewModel {
   personalizationModelVersion: string;
   isExploration: boolean;
   currentDecision: JobCardDecision;
+  /** Revision token for optimistic concurrency on this visitor/job state. */
+  currentDecisionEventId: string | null;
   employmentType: string;
   sourceName: string;
   sourceUrl: string | null;
@@ -141,6 +144,8 @@ export interface JobCardViewModel {
   reasonsToApply: readonly [string, ...string[]];
   warnings: readonly string[];
   scoreBreakdown: readonly ScoreBreakdownItemViewModel[];
+  /** Immutable catalog facts for the exact revision shown on this card. */
+  featureSnapshot?: JobFeatureSnapshot;
   /** A compact, evidence-backed decision summary. Optional for legacy fixtures. */
   decisionBrief?: JobDecisionBrief;
 }

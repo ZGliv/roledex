@@ -1,0 +1,2 @@
+CREATE INDEX `candidate_resume_imports_status_updated_idx` ON `candidate_resume_imports` (`status`,`updated_at`,`id`);--> statement-breakpoint
+CREATE INDEX `feed_exposures_visitor_exposed_idx` ON `feed_exposures` (`visitor_id`,`exposed_at`);

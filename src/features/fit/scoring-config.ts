@@ -1,6 +1,6 @@
 import type { FitComponentKey } from "./types";
 
-export const FIT_SCORING_VERSION = "deterministic-fit-v2" as const;
+export const FIT_SCORING_VERSION = "deterministic-fit-v5" as const;
 export const NEUTRAL_COMPONENT_SCORE = 50;
 export const MINIMUM_SCORE_COVERAGE = 0.6;
 

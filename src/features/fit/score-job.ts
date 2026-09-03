@@ -16,6 +16,7 @@ import {
 import type {
   CandidateFitProfile,
   CandidateLocation,
+  CandidateRoleTargetPreference,
   CandidateSkill,
   DeterministicFitResult,
   EligibilityResult,
@@ -25,6 +26,7 @@ import type {
   FitVerdict,
   PortfolioEvidence,
   Readiness,
+  RoleTargetMatch,
   ScoreJobInput,
 } from "./types";
 
@@ -73,8 +75,9 @@ const ROLE_STOP_WORDS = new Set([
 export function scoreJob(input: ScoreJobInput): DeterministicFitResult {
   const { job, candidate, portfolioProjects } = input;
   const experience = evaluateExperience(job.experienceRequirements, job.seniority.value, candidate);
+  const roleFamily = evaluateCandidateRoleFamily(job.title, candidate);
   const drafts: Record<FitComponentKey, ComponentDraft> = {
-    roleFamily: evaluateRoleFamily(job.title, candidate.targetRoleFamilies),
+    roleFamily: roleFamily.component,
     skills: evaluateSkills(job.technologies, candidate.skills),
     experience,
     compensation: evaluateCompensation(job, candidate),
@@ -131,6 +134,7 @@ export function scoreJob(input: ScoreJobInput): DeterministicFitResult {
     assessmentState,
     eligibility,
     components,
+    roleTargetMatch: roleFamily.roleTargetMatch,
     strongestMatches,
     qualificationGaps,
     reasonsNotToApply,
@@ -139,6 +143,165 @@ export function scoreJob(input: ScoreJobInput): DeterministicFitResult {
     readiness,
     verdict,
     verdictExplanation: explanation,
+  };
+}
+
+interface RoleFamilyEvaluation {
+  component: ComponentDraft;
+  roleTargetMatch: RoleTargetMatch | null;
+}
+
+interface StructuredTargetCandidate {
+  matchQuality: RoleTargetMatch["matchQuality"];
+  matchedOn: string;
+  similarity: number;
+  target: CandidateRoleTargetPreference;
+}
+
+function structuredTargetCandidate(
+  title: string,
+  target: CandidateRoleTargetPreference,
+): StructuredTargetCandidate | null {
+  const phrases = [
+    target.label,
+    ...target.aliases,
+    target.canonicalFamily.replaceAll("_", " "),
+  ].filter((value, index, values) => {
+    const normalized = normalize(value);
+    return Boolean(normalized) && values.findIndex((item) => normalize(item) === normalized) === index;
+  });
+  const normalizedTitle = normalize(title);
+  const jobFamilies = classifyRoleFamilies(title);
+  let strongestPhrase = phrases[0] ?? target.label;
+  let strongestSimilarity = 0;
+  let direct = false;
+
+  for (const phrase of phrases) {
+    const normalizedPhrase = normalize(phrase);
+    const similarity = tokenSimilarity(title, phrase);
+    if (similarity > strongestSimilarity) {
+      strongestSimilarity = similarity;
+      strongestPhrase = phrase;
+    }
+    const targetFamilies = classifyRoleFamilies(phrase);
+    if (
+      phrasePresent(normalizedTitle, normalizedPhrase) ||
+      phrasePresent(normalizedPhrase, normalizedTitle) ||
+      [...jobFamilies].some((family) => targetFamilies.has(family))
+    ) {
+      direct = true;
+      strongestPhrase = phrase;
+      strongestSimilarity = Math.max(strongestSimilarity, similarity);
+      break;
+    }
+  }
+
+  if (direct) {
+    return {
+      matchQuality: "direct",
+      matchedOn: strongestPhrase,
+      similarity: Math.max(0.9, strongestSimilarity),
+      target,
+    };
+  }
+  if (strongestSimilarity >= 0.45) {
+    return {
+      matchQuality: "adjacent",
+      matchedOn: strongestPhrase,
+      similarity: strongestSimilarity,
+      target,
+    };
+  }
+  return null;
+}
+
+function evaluateStructuredRoleFamily(
+  title: string,
+  targets: readonly CandidateRoleTargetPreference[],
+): RoleFamilyEvaluation {
+  const candidates = targets
+    .map((target) => structuredTargetCandidate(title, target))
+    .filter((candidate): candidate is StructuredTargetCandidate => candidate !== null)
+    .toSorted((left, right) => {
+      if (left.matchQuality !== right.matchQuality) {
+        return left.matchQuality === "direct" ? -1 : 1;
+      }
+      if (left.target.priorityRank !== right.target.priorityRank) {
+        return left.target.priorityRank - right.target.priorityRank;
+      }
+      return right.similarity - left.similarity;
+    });
+  const best = candidates[0];
+  if (!best) {
+    return {
+      component: evaluateRoleFamily(
+        title,
+        targets.flatMap((target) => [target.label, ...target.aliases]),
+      ),
+      roleTargetMatch: null,
+    };
+  }
+
+  // Priority is a stated-utility preference, not evidence that the candidate
+  // is less qualified. Keep its deterministic effect deliberately small while
+  // still providing a stable ordering signal to the current recommender.
+  const priorityPenalty = Math.min(
+    4,
+    Math.max(0, best.target.priorityRank - 1) * 0.5,
+  );
+  const readinessBase =
+    best.target.readiness === "stretch"
+      ? best.matchQuality === "direct"
+        ? 74
+        : 58
+      : best.matchQuality === "direct"
+        ? 100
+        : 70;
+  const rawScore = Math.max(0, readinessBase - priorityPenalty);
+  const roleTargetMatch: RoleTargetMatch = {
+    canonicalFamily: best.target.canonicalFamily,
+    label: best.target.label,
+    priorityRank: best.target.priorityRank,
+    readiness: best.target.readiness,
+    allowedSeniorityLevels: [...best.target.allowedSeniorityLevels],
+    minimumRequiredExperienceYears:
+      best.target.minimumRequiredExperienceYears,
+    maximumRequiredExperienceYears:
+      best.target.maximumRequiredExperienceYears,
+    exclusions: [...best.target.exclusions],
+    matchQuality: best.matchQuality,
+    matchedOn: best.matchedOn,
+  };
+  const targetKind = best.target.readiness === "ready_now" ? "Ready Now" : "Stretch";
+  const matchDescription = best.matchQuality === "direct" ? "directly matches" : "is adjacent to";
+  return {
+    component: {
+      rawScore,
+      coverage: best.matchQuality === "direct" ? 1 : 0.8,
+      rationale: `${title} ${matchDescription} the priority ${best.target.priorityRank} ${targetKind} direction ${best.target.label}.`,
+      evidence: [
+        {
+          kind: best.target.readiness === "ready_now" ? "match" : "risk",
+          message: `${title} ${matchDescription} the ${best.target.label} ${targetKind.toLocaleLowerCase("en-US")} direction.`,
+          source: "candidate",
+          excerpt: best.matchedOn,
+        },
+      ],
+    },
+    roleTargetMatch,
+  };
+}
+
+function evaluateCandidateRoleFamily(
+  title: string,
+  candidate: CandidateFitProfile,
+): RoleFamilyEvaluation {
+  if (candidate.roleTargets && candidate.roleTargets.length > 0) {
+    return evaluateStructuredRoleFamily(title, candidate.roleTargets);
+  }
+  return {
+    component: evaluateRoleFamily(title, candidate.targetRoleFamilies),
+    roleTargetMatch: null,
   };
 }
 
@@ -565,30 +728,30 @@ function evaluateWorkArrangement(
   if (!arrangement || arrangement === "unknown") {
     return unknownDraft("The work arrangement is unclear.", "work arrangement");
   }
-  if (candidate.preferredWorkArrangements === null) {
+  if (
+    candidate.preferredWorkArrangements === null ||
+    candidate.preferredWorkArrangements.length === 0
+  ) {
     return unknownDraft(
       "Candidate work-arrangement preferences have not been recorded.",
       "work preferences",
     );
   }
 
-  const preferenceIndex = candidate.preferredWorkArrangements.indexOf(arrangement);
-  let rawScore =
-    preferenceIndex === 0
-      ? 100
-      : preferenceIndex === 1
-        ? 75
-        : preferenceIndex >= 2
-          ? 40
-          : 15;
+  // The legacy profile control is a set of checkboxes, not a ranking control.
+  // Array position reflects form/serialization order and must not make the
+  // second or third selected mode look progressively worse.
+  const isPreferred = candidate.preferredWorkArrangements.includes(arrangement);
+  const arrangementLabel = humanize(arrangement);
+  const sentenceArrangement = `${arrangementLabel.charAt(0).toLocaleUpperCase("en-US")}${arrangementLabel.slice(1)}`;
+  let rawScore = isPreferred ? 100 : 15;
   let coverage = 1;
   const evidence: FitEvidence[] = [
     {
-      kind: preferenceIndex >= 0 ? "match" : "gap",
-      message:
-        preferenceIndex >= 0
-          ? `${humanize(arrangement)} is preference number ${preferenceIndex + 1}.`
-          : `${humanize(arrangement)} is not a configured preferred arrangement.`,
+      kind: isPreferred ? "match" : "gap",
+      message: isPreferred
+        ? `${sentenceArrangement} is one of the configured preferred arrangements.`
+        : `${sentenceArrangement} is not a configured preferred arrangement.`,
       source: "candidate",
       excerpt: job.workArrangement.evidence[0]?.excerpt,
     },
@@ -618,7 +781,7 @@ function evaluateWorkArrangement(
     rationale:
       restriction === "unresolved"
         ? "The arrangement is attractive, but geographic eligibility remains unresolved."
-        : "The explicit arrangement is compared with the candidate's ranked preferences.",
+        : "The explicit arrangement is compared with the candidate's selected preference set.",
     evidence,
   };
 }
@@ -1035,6 +1198,23 @@ function evaluateParsedEligibilityRequirements(
   reasons: FitEvidence[],
 ): void {
   for (const requirement of requirements) {
+    const requirementText = `${requirement.value} ${requirement.evidence.excerpt}`;
+    if (
+      requirement.kind === "work_authorization" &&
+      candidate.requiresSponsorship === true &&
+      /\b(?:no|without)\s+(?:visa\s+)?sponsorship\b|\b(?:cannot|can't|unable to|will not|won't)\s+sponsor\b/i.test(
+        requirementText,
+      )
+    ) {
+      reasons.push({
+        kind: "blocker",
+        message:
+          "The listing explicitly rules out sponsorship, but the profile requires it.",
+        source: "derived",
+        excerpt: requirement.evidence.excerpt,
+      });
+      continue;
+    }
     const candidateValues =
       requirement.kind === "citizenship"
         ? candidate.citizenships

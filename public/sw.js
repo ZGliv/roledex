@@ -1,12 +1,13 @@
 const CACHE_PREFIX = "jobswipe-static-";
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 const MAX_CACHED_ASSETS = 96;
 
 const VERSIONED_ICON_PATHS = new Set([
-  "/icons/v4/32",
-  "/icons/v4/192",
-  "/icons/v4/512",
-  "/icons/v4/apple",
+  "/icons/v5/32",
+  "/icons/v5/192",
+  "/icons/v5/512",
+  "/icons/v5/apple",
+  "/icons/v5/maskable",
 ]);
 
 const HASHED_NEXT_STATIC_PATH =
@@ -24,7 +25,7 @@ const OFFLINE_DOCUMENT = `<!doctype html>
     * { box-sizing: border-box; }
     body { align-items: center; background: #f5f6f8; color: #15161a; display: flex; justify-content: center; margin: 0; min-height: 100dvh; padding: 24px; }
     main { max-width: 360px; text-align: center; }
-    .mark { align-items: center; background: #0d1422; border-radius: 22px; color: white; display: inline-flex; height: 72px; justify-content: center; margin-bottom: 24px; width: 72px; }
+    .mark { align-items: center; background: linear-gradient(145deg, #151e34 0%, #0d1422 48%, #070b14 100%); border-radius: 22px; color: white; display: inline-flex; height: 72px; justify-content: center; margin-bottom: 24px; width: 72px; }
     .mark svg { display: block; height: 100%; width: 100%; }
     h1 { font-size: 28px; letter-spacing: -0.04em; margin: 0; }
     p { color: #60646b; font-size: 15px; line-height: 1.6; margin: 12px 0 24px; }
@@ -35,8 +36,30 @@ const OFFLINE_DOCUMENT = `<!doctype html>
   <main>
     <div class="mark" aria-hidden="true">
       <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M21.35 7.75v9.75c0 4.55-2.5 7.2-6.6 7.2-3.15 0-5.4-1.45-6.55-3.9" stroke="#f8fafc" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.05"/>
-        <path d="M10.15 12.45h14m0 0-2.65-2.55m2.65 2.55-2.65 2.55" stroke="#7868f6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.7"/>
+        <defs>
+          <linearGradient id="roledex-active-card" x1="12.4" x2="25.6" y1="8" y2="25.4">
+            <stop stop-color="#fbf8ff" stop-opacity="0.58"/>
+            <stop offset="0.54" stop-color="#8b81df" stop-opacity="0.6"/>
+            <stop offset="1" stop-color="#8d5dff" stop-opacity="0.74"/>
+          </linearGradient>
+          <linearGradient id="roledex-active-stroke" x1="12" x2="25.6" y1="8.2" y2="25.8">
+            <stop stop-color="#ffffff"/>
+            <stop offset="0.55" stop-color="#b9c6ff"/>
+            <stop offset="1" stop-color="#b26cff"/>
+          </linearGradient>
+          <linearGradient id="roledex-swipe-arc" x1="7.35" x2="25.85" y1="25.8" y2="22.2">
+            <stop stop-color="#2d4fff" stop-opacity="0"/>
+            <stop offset="0.52" stop-color="#5e5bff" stop-opacity="0.76"/>
+            <stop offset="1" stop-color="#b870ff"/>
+          </linearGradient>
+        </defs>
+        <path d="M7.55 24.7c4.85 2.2 13.2 1.65 17.1-1.95" stroke="url(#roledex-swipe-arc)" stroke-linecap="round" stroke-width="0.92"/>
+        <path d="m23.7 22.65 1.28-.18-.04 1.3" stroke="#b870ff" stroke-linecap="round" stroke-linejoin="round" stroke-width="0.92"/>
+        <rect x="6.55" y="9.7" width="11.4" height="16.1" rx="2.35" fill="#243145" opacity="0.78" transform="rotate(-12 12.25 17.75)"/>
+        <rect x="10.2" y="7.4" width="12.15" height="17" rx="2.45" fill="#3468ff" transform="rotate(-2.5 16.275 15.9)"/>
+        <rect x="13.45" y="7.15" width="12.2" height="17.4" rx="2.55" fill="url(#roledex-active-card)" transform="rotate(12 19.55 15.85)"/>
+        <rect x="13.45" y="7.15" width="12.2" height="17.4" rx="2.55" fill="none" stroke="url(#roledex-active-stroke)" stroke-opacity="0.9" stroke-width="0.72" transform="rotate(12 19.55 15.85)"/>
+        <path d="M15.5 9.25c2.45-.45 5.45-.15 7.45.8" stroke="#f3efff" stroke-linecap="round" stroke-opacity="0.45" stroke-width="0.74"/>
       </svg>
     </div>
     <h1>You’re offline</h1>

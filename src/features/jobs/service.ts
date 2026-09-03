@@ -6,11 +6,15 @@ import { db, ensureDatabaseReady } from "@/db/client";
 import { withDatabaseWriteRetry } from "@/db/write-retry";
 import {
   candidateProfiles,
+  candidateRoleTargets,
+  candidateSkillEvidence,
   fitScoreRuns,
+  jobFeatureSnapshots,
   jobListings,
   jobRevisions,
   portfolioProjects,
   type ExtractedFieldEvidence,
+  type JsonObject,
   type JobSourceType,
   type SalaryPeriod as StoredSalaryPeriod,
 } from "@/db/schema";
@@ -19,6 +23,7 @@ import { buildFitScoreRun } from "@/features/fit/run-builder";
 import { FIT_SCORING_VERSION } from "@/features/fit/scoring-config";
 import type { DeterministicFitResult, Readiness } from "@/features/fit/types";
 import { ManualJobInputSchema, type ManualJobInput } from "@/features/jobs/input";
+import { jobFeatureSnapshotInsertValues } from "@/features/jobs/feature-snapshot";
 import { parseJobListing } from "@/features/jobs/parser";
 import {
   JOB_PARSER_VERSION,
@@ -226,11 +231,23 @@ export async function upsertSourcedJob(input: SourcedJobInput): Promise<SourcedJ
         "No active candidate profile exists. Run `npm run db:seed` to create the local profile.",
       );
     }
-    const projects = await transaction
-      .select()
-      .from(portfolioProjects)
-      .where(eq(portfolioProjects.candidateProfileId, profile.id))
-      .orderBy(asc(portfolioProjects.name));
+    const [projects, roleTargets, skillEvidence] = await Promise.all([
+      transaction
+        .select()
+        .from(portfolioProjects)
+        .where(eq(portfolioProjects.candidateProfileId, profile.id))
+        .orderBy(asc(portfolioProjects.name)),
+      transaction
+        .select()
+        .from(candidateRoleTargets)
+        .where(eq(candidateRoleTargets.candidateProfileId, profile.id))
+        .orderBy(asc(candidateRoleTargets.priorityRank)),
+      transaction
+        .select()
+        .from(candidateSkillEvidence)
+        .where(eq(candidateSkillEvidence.candidateProfileId, profile.id))
+        .orderBy(asc(candidateSkillEvidence.name)),
+    ]);
     const scoreRevision = async (revisionId: string) => {
       const scoring = buildFitScoreRun({
         contentHash: input.contentHash,
@@ -238,12 +255,26 @@ export async function upsertSourcedJob(input: SourcedJobInput): Promise<SourcedJ
         jobRevisionId: revisionId,
         profile,
         projects,
+        roleTargets,
+        skillEvidence,
       });
       await transaction
         .insert(fitScoreRuns)
         .values({ jobRevisionId: revisionId, ...scoring.values })
         .onConflictDoNothing();
       return scoring.fitResult;
+    };
+    const ensureFeatureSnapshot = async (
+      revision: typeof jobRevisions.$inferSelect,
+    ) => {
+      const values = jobFeatureSnapshotInsertValues(revision);
+      await transaction
+        .insert(jobFeatureSnapshots)
+        .values({
+          ...values,
+          snapshot: values.snapshot as unknown as JsonObject,
+        })
+        .onConflictDoNothing();
     };
 
     const [existing] = await transaction
@@ -268,6 +299,7 @@ export async function upsertSourcedJob(input: SourcedJobInput): Promise<SourcedJ
           .update(jobListings)
           .set({ lifecycleStatus: "active", updatedAt: new Date() })
           .where(eq(jobListings.id, listingId));
+        await ensureFeatureSnapshot(latestRevision);
         const fitResult = await scoreRevision(latestRevision.id);
         return {
           changed: false,
@@ -357,6 +389,7 @@ export async function upsertSourcedJob(input: SourcedJobInput): Promise<SourcedJ
       })
       .where(eq(jobListings.id, listingId));
 
+    await ensureFeatureSnapshot(revision);
     const fitResult = await scoreRevision(revision.id);
 
     return {

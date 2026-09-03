@@ -17,6 +17,8 @@ import { db, ensureDatabaseReady } from "@/db/client";
 import { withDatabaseWriteRetry } from "@/db/write-retry";
 import {
   candidateProfiles,
+  candidateRoleTargets,
+  candidateSkillEvidence,
   fitScoreRuns,
   jobListings,
   jobRevisions,
@@ -28,12 +30,13 @@ import { requireVisitorId } from "@/features/auth/visitor";
 import {
   candidateProfileFingerprint,
   profileUpdateFromSubmission,
+  type CandidateSearchPreferences,
   type CandidateProfileSubmission,
   type CandidateProfileUpdate,
 } from "@/features/candidate/input";
 import {
   parsedJobForRescore,
-  VISITOR_SCORE_WINDOW,
+  VISITOR_SCORE_BATCH_SIZE,
 } from "@/features/candidate/scoring";
 import { STARTER_PROFILE_FINGERPRINT } from "@/features/candidate/starter-profile";
 import { OWNER_VISITOR_ID } from "@/features/auth/identity";
@@ -73,6 +76,9 @@ function updatedProfile(
   return {
     ...profile,
     ...input,
+    // The legacy core form still edits this set. Keep the canonical v2 field
+    // synchronized so those writes cannot be shadowed by a non-empty default.
+    preferredWorkModes: input.preferredWorkArrangements,
     location: input.location || null,
     relocationPreference: input.relocationPreference || null,
     revision: profile.revision + 1,
@@ -81,7 +87,9 @@ function updatedProfile(
   };
 }
 
-function storedProfileInput(profile: CandidateProfile): CandidateProfileUpdate {
+export function storedProfileInput(
+  profile: CandidateProfile,
+): CandidateProfileUpdate {
   return {
     currentRole: profile.currentRole,
     currentSalaryCents: profile.currentSalaryCents,
@@ -102,6 +110,29 @@ function storedProfileInput(profile: CandidateProfile): CandidateProfileUpdate {
     careerGoals: profile.careerGoals,
     interviewConcerns: profile.interviewConcerns,
     dealBreakers: profile.dealBreakers,
+  };
+}
+
+export function storedCandidateSearchPreferences(
+  profile: CandidateProfile,
+): CandidateSearchPreferences {
+  return {
+    desiredSeniorityLevels: profile.desiredSeniorityLevels,
+    excludedTitles: profile.excludedTitles,
+    excludedCompanies: profile.excludedCompanies,
+    excludedIndustries: profile.excludedIndustries,
+    acceptedEmploymentTypes: profile.acceptedEmploymentTypes,
+    preferredWorkModes: profile.preferredWorkModes.filter(
+      (value): value is "remote" | "hybrid" | "on_site" => value !== "unclear",
+    ),
+    strictWorkModes: profile.strictWorkModes,
+    commuteRadiusMiles: profile.commuteRadiusMiles,
+    maxOfficeDaysPerWeek: profile.maxOfficeDaysPerWeek,
+    relocationDestinations: profile.relocationDestinations,
+    maxTravelPercent: profile.maxTravelPercent,
+    workAuthorization: profile.workAuthorization,
+    requiresSponsorship: profile.requiresSponsorship,
+    missingSalaryPolicy: profile.missingSalaryPolicy,
   };
 }
 
@@ -143,9 +174,23 @@ export async function updateCandidateProfileAndRescoreForVisitor(
     }
 
     const input = profileUpdateFromSubmission(submission);
-    const nextFingerprint = candidateProfileFingerprint(input);
-    const currentFingerprint =
-      profile.fingerprint ?? candidateProfileFingerprint(storedProfileInput(profile));
+    const searchPreferences = storedCandidateSearchPreferences(profile);
+    const nextSearchPreferences = {
+      ...searchPreferences,
+      preferredWorkModes: input.preferredWorkArrangements,
+    };
+    const nextFingerprint = candidateProfileFingerprint(
+      input,
+      nextSearchPreferences,
+      profile.evidenceFingerprint,
+      profile.searchContractFingerprint,
+    );
+    const currentFingerprint = candidateProfileFingerprint(
+      storedProfileInput(profile),
+      searchPreferences,
+      profile.evidenceFingerprint,
+      profile.searchContractFingerprint,
+    );
     if (nextFingerprint === currentFingerprint) {
       return {
         revision: profile.revision,
@@ -209,11 +254,23 @@ export async function updateCandidateProfileAndRescoreForVisitor(
       }
     }
 
-    const projects = await transaction
-      .select()
-      .from(portfolioProjects)
-      .where(eq(portfolioProjects.candidateProfileId, profile.id))
-      .orderBy(asc(portfolioProjects.name));
+    const [projects, roleTargets, skillEvidence] = await Promise.all([
+      transaction
+        .select()
+        .from(portfolioProjects)
+        .where(eq(portfolioProjects.candidateProfileId, profile.id))
+        .orderBy(asc(portfolioProjects.name)),
+      transaction
+        .select()
+        .from(candidateRoleTargets)
+        .where(eq(candidateRoleTargets.candidateProfileId, profile.id))
+        .orderBy(asc(candidateRoleTargets.priorityRank)),
+      transaction
+        .select()
+        .from(candidateSkillEvidence)
+        .where(eq(candidateSkillEvidence.candidateProfileId, profile.id))
+        .orderBy(asc(candidateSkillEvidence.name)),
+    ]);
     const currentRevisionRows = await transaction
       .select({ revision: jobRevisions })
       .from(jobListings)
@@ -237,7 +294,10 @@ export async function updateCandidateProfileAndRescoreForVisitor(
         ),
       )
       .orderBy(desc(jobListings.createdAt), desc(jobListings.id))
-      .limit(VISITOR_SCORE_WINDOW);
+      // Keep the profile revision and its first score batch atomic. The normal
+      // post-action render then repairs every remaining missing batch through
+      // ensureCurrentFitScoresForProfile without reselecting these rows.
+      .limit(VISITOR_SCORE_BATCH_SIZE);
     const nextProfile = updatedProfile(
       profile,
       input,
@@ -251,6 +311,8 @@ export async function updateCandidateProfileAndRescoreForVisitor(
         jobRevisionId: revision.id,
         profile: nextProfile,
         projects,
+        roleTargets,
+        skillEvidence,
       });
       return { jobRevisionId: revision.id, ...scoring.values };
     });
@@ -263,6 +325,7 @@ export async function updateCandidateProfileAndRescoreForVisitor(
         preferredSalaryMinimumCents: nextProfile.preferredSalaryMinimumCents,
         preferredSalaryTargetCents: nextProfile.preferredSalaryTargetCents,
         preferredWorkArrangements: nextProfile.preferredWorkArrangements,
+        preferredWorkModes: nextProfile.preferredWorkModes,
         preferredIndustries: nextProfile.preferredIndustries,
         targetRoleFamilies: nextProfile.targetRoleFamilies,
         strengths: nextProfile.strengths,

@@ -1,11 +1,13 @@
 import "server-only";
 
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 
 import { db, ensureDatabaseReady } from "@/db/client";
 import { eq } from "drizzle-orm";
 
 import { visitors } from "@/db/schema";
+import { withDatabaseWriteRetry } from "@/db/write-retry";
 import {
   getOwnerAuthConfig,
   OWNER_SESSION_COOKIE,
@@ -62,7 +64,7 @@ export async function getCurrentVisitorId() {
   throw new Error("A valid visitor session is required.");
 }
 
-export async function ensureVisitor(visitorId: string) {
+const ensureVisitorCached = cache(async (visitorId: string) => {
   if (!isVisitorId(visitorId)) throw new TypeError("Invalid visitor ID.");
   await ensureDatabaseReady();
   const [existing] = await db
@@ -71,18 +73,28 @@ export async function ensureVisitor(visitorId: string) {
     .where(eq(visitors.id, visitorId))
     .limit(1);
   if (existing) return visitorId;
-  await db
-    .insert(visitors)
-    .values({
-      id: visitorId,
-      kind: visitorId === OWNER_VISITOR_ID ? "owner" : "guest",
-    })
-    .onConflictDoNothing();
+  await withDatabaseWriteRetry(() =>
+    db
+      .insert(visitors)
+      .values({
+        id: visitorId,
+        kind: visitorId === OWNER_VISITOR_ID ? "owner" : "guest",
+      })
+      .onConflictDoNothing(),
+  );
   return visitorId;
+});
+
+export function ensureVisitor(visitorId: string) {
+  return ensureVisitorCached(visitorId);
 }
 
-export async function requireVisitorId() {
+const requireVisitorIdCached = cache(async () => {
   const visitorId = await ensureVisitor(await getCurrentVisitorId());
   await admitVisitorWorkspace(visitorId);
   return visitorId;
+});
+
+export function requireVisitorId() {
+  return requireVisitorIdCached();
 }

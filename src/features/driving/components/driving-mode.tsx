@@ -212,6 +212,7 @@ export function DrivingMode({
             job.id,
             decision,
             job.currentDecision,
+            job.currentDecisionEventId,
           );
           if (!result.ok) throw new Error(result.message);
           if (isFinalJob) {

@@ -16,19 +16,19 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: APP_CHROME_COLOR,
     icons: [
       {
-        src: "/icons/v4/192",
+        src: "/icons/v5/192",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/v4/512",
+        src: "/icons/v5/512",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/v4/512",
+        src: "/icons/v5/maskable",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
@@ -40,21 +40,21 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: "Saved",
         description: "Open the jobs you kept.",
         url: "/saved",
-        icons: [{ src: "/icons/v4/192", sizes: "192x192", type: "image/png" }],
+        icons: [{ src: "/icons/v5/192", sizes: "192x192", type: "image/png" }],
       },
       {
         name: "Driving mode",
         short_name: "Listen",
         description: "Set up narrated job review while safely parked.",
         url: "/drive",
-        icons: [{ src: "/icons/v4/192", sizes: "192x192", type: "image/png" }],
+        icons: [{ src: "/icons/v5/192", sizes: "192x192", type: "image/png" }],
       },
       {
         name: "Market insights",
         short_name: "Insights",
         description: "See patterns across your job search.",
         url: "/insights",
-        icons: [{ src: "/icons/v4/192", sizes: "192x192", type: "image/png" }],
+        icons: [{ src: "/icons/v5/192", sizes: "192x192", type: "image/png" }],
       },
     ],
   };

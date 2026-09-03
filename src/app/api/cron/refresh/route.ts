@@ -1,5 +1,7 @@
 import { hasValidCronAuthorization } from "@/features/discovery/cron-auth";
+import { TECHNICAL_CAREER_MOVER_DISCOVERY_PROFILE } from "@/features/discovery/relevance";
 import { refreshDiscoveryJobs } from "@/features/discovery/service";
+import { runDailyDataLifecycleMaintenance } from "@/features/data-lifecycle/service";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,19 +24,45 @@ export async function GET(request: Request) {
     );
   }
 
+  let maintenance:
+    | Awaited<ReturnType<typeof runDailyDataLifecycleMaintenance>>
+    | null = null;
+  let maintenanceFailed = false;
+  try {
+    maintenance = await runDailyDataLifecycleMaintenance();
+  } catch (error) {
+    maintenanceFailed = true;
+    console.error("Scheduled data-lifecycle cleanup failed.", error);
+  }
+
   try {
     // The daily scheduler bypasses only the short global UI cooldown. Source
     // due times and the bounded round-robin still determine what is fetched.
-    const result = await refreshDiscoveryJobs("scheduled", { force: true });
-    const failed = result.kind === "completed" && result.status === "failed";
+    const result = await refreshDiscoveryJobs("scheduled", {
+      focus: TECHNICAL_CAREER_MOVER_DISCOVERY_PROFILE,
+      force: true,
+    });
+    const refreshFailed =
+      result.kind === "completed" && result.status === "failed";
+    const failed = refreshFailed || maintenanceFailed;
     return Response.json(
-      { ok: !failed, result },
+      {
+        ok: !failed,
+        maintenance:
+          maintenance ?? { error: "Data-lifecycle cleanup failed." },
+        result,
+      },
       { status: failed ? 503 : 200, headers: RESPONSE_HEADERS },
     );
   } catch (error) {
     console.error("Scheduled job discovery refresh failed.", error);
     return Response.json(
-      { ok: false, error: "Scheduled refresh failed." },
+      {
+        ok: false,
+        error: "Scheduled refresh failed.",
+        maintenance:
+          maintenance ?? { error: "Data-lifecycle cleanup failed." },
+      },
       { status: 500, headers: RESPONSE_HEADERS },
     );
   }

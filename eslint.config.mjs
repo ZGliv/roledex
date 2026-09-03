@@ -11,6 +11,11 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "mobile/dist/**",
+    "mobile/ios/**/public/**",
+    // Generated media/research artifacts are not part of the JobSwipe app.
+    "output/**",
+    "grok-bot-setup/**",
     "next-env.d.ts",
   ]),
 ]);

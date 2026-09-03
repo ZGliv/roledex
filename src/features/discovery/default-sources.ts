@@ -12,7 +12,8 @@ export type StarterJobSource = {
  * A broad, editable network of official public ATS boards spanning AI,
  * product-led software, fintech, and health technology. Every provider key
  * below returned a valid response from its first-party Greenhouse, Lever, or
- * Ashby endpoint on 2026-08-05. A changing or retired board is isolated during
+ * Ashby endpoint when added (the targeted implementation-role additions were
+ * rechecked on 2026-08-11). A changing or retired board is isolated during
  * refresh and can be disabled or removed from the Sources screen.
  */
 export const DEFAULT_JOB_SOURCES = [
@@ -51,11 +52,18 @@ export const DEFAULT_JOB_SOURCES = [
   { provider: "greenhouse", providerKey: "verkada", companyName: "Verkada", companyDomain: "verkada.com" },
 
   // Lever
+  { provider: "lever", providerKey: "workwave", companyName: "WorkWave", companyDomain: "workwave.com" },
+  { provider: "lever", providerKey: "aledade", companyName: "Aledade", companyDomain: "aledade.com" },
   { provider: "lever", providerKey: "whoop", companyName: "WHOOP", companyDomain: "whoop.com" },
   { provider: "lever", providerKey: "swordhealth", companyName: "Sword Health", companyDomain: "swordhealth.com" },
   { provider: "lever", providerKey: "palantir", companyName: "Palantir", companyDomain: "palantir.com" },
 
   // Ashby
+  { provider: "ashby", providerKey: "ashby", companyName: "Ashby", companyDomain: "ashbyhq.com" },
+  { provider: "ashby", providerKey: "govworx", companyName: "GovWorx", companyDomain: "govworx.ai" },
+  { provider: "ashby", providerKey: "aurelian", companyName: "Aurelian", companyDomain: "aurelian.com" },
+  { provider: "ashby", providerKey: "hellopatient", companyName: "Hello Patient", companyDomain: "hellopatient.com" },
+  { provider: "ashby", providerKey: "raspberry", companyName: "Raspberry AI", companyDomain: "raspberry.ai" },
   { provider: "ashby", providerKey: "abridge", companyName: "Abridge", companyDomain: "abridge.com" },
   { provider: "ashby", providerKey: "notion", companyName: "Notion", companyDomain: "notion.so" },
   { provider: "ashby", providerKey: "cohere", companyName: "Cohere", companyDomain: "cohere.com" },

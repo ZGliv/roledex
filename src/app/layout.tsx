@@ -1,8 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppDock } from "@/components/app-header";
+import {
+  AppDock,
+  NavigationTransitionProvider,
+} from "@/components/app-header";
 import { PwaRegistration } from "@/components/pwa-registration";
+import { EmergencyDecisionSync } from "@/features/jobs/components/emergency-decision-sync";
+import { productionDatabaseReleaseBlocked } from "@/features/production/database-release";
 import "./globals.css";
 
 const APP_CHROME_COLOR = "#060913";
@@ -30,8 +35,8 @@ export const metadata: Metadata = {
   description: "A simpler way to discover, compare, and save jobs that fit.",
   applicationName: "JobSwipe",
   icons: {
-    icon: [{ url: "/icons/v4/32", sizes: "32x32", type: "image/png" }],
-    apple: [{ url: "/icons/v4/apple", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: "/icons/v5/32", sizes: "32x32", type: "image/png" }],
+    apple: [{ url: "/icons/v5/apple", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,
@@ -51,6 +56,8 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const databaseReleaseBlocked = productionDatabaseReleaseBlocked();
+
   return (
     <html
       lang="en"
@@ -62,10 +69,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         style={{ backgroundColor: APP_CHROME_COLOR }}
       >
         <TooltipProvider>
-          <div className="flex min-h-dvh flex-col">
-            <AppDock />
-            <main className="flex-1">{children}</main>
-          </div>
+          <NavigationTransitionProvider>
+            <div className="flex min-h-dvh flex-col">
+              <AppDock />
+              <main className="flex-1">{children}</main>
+            </div>
+          </NavigationTransitionProvider>
+          {databaseReleaseBlocked ? null : <EmergencyDecisionSync />}
           <PwaRegistration />
         </TooltipProvider>
       </body>
