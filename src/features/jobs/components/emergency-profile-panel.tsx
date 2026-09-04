@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -58,6 +60,18 @@ function toggleValue<T extends string>(values: readonly T[], value: T) {
     : [...values, value];
 }
 
+function shortRoleSummary(roles: readonly string[]) {
+  if (roles.length === 0) return "No role directions selected";
+  const visible = roles.slice(0, 2).map((role) => ROLE_LABELS[role] ?? role);
+  return roles.length > 2
+    ? `${visible.join(", ")} +${roles.length - 2}`
+    : visible.join(", ");
+}
+
+function salaryLabel(cents: number) {
+  return cents > 0 ? `$${Math.round(cents / 100_000)}K+ posted pay` : "No posted-pay floor";
+}
+
 function ChoiceButton({
   active,
   children,
@@ -76,10 +90,10 @@ function ChoiceButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "min-h-11 rounded-lg border px-3 text-[12px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#6f9bea] disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none",
+        "min-h-11 rounded-xl border px-3 text-[12px] font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[#aaa3ff]/55 disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none",
         active
-          ? "border-[#4f7fd8] bg-[#203658] text-[#bcd0f5]"
-          : "border-[#303b49] bg-[#18212c] text-[#9da8b9] hover:bg-[#202b38] hover:text-[#dce1e9]",
+          ? "border-[#aaa3ff]/38 bg-[#8176ff]/18 text-[#e1deff] shadow-[inset_0_1px_0_rgba(255,255,255,.1)]"
+          : "border-white/[0.09] bg-white/[0.035] text-[#9da8b9] hover:bg-white/[0.07] hover:text-[#dce1e9]",
       )}
     >
       {children}
@@ -111,6 +125,14 @@ export function EmergencyProfilePanel() {
   );
   const currentFingerprint = profileFingerprint(profile);
   const dirty = currentFingerprint !== savedFingerprint;
+  const hardFilterSummary = `${salaryLabel(profile.preferredSalaryMinimumCents)} · ${
+    profile.preferredWorkModes.length > 0
+      ? profile.preferredWorkModes.map((mode) => WORK_MODE_LABELS[mode]).join(", ")
+      : "Any work setup"
+  } · ${profile.desiredSeniorityLevels
+    .map((level) => SENIORITY_LABELS[level])
+    .join(" + ")}`;
+
   function update(next: EmergencyFeedProfile) {
     setSavedAnnouncement("");
     setProfile(next);
@@ -121,25 +143,70 @@ export function EmergencyProfilePanel() {
     setProfile(result.profile);
     if (!result.persisted) {
       setSavedAnnouncement(
-        "Couldn’t save",
+        "Couldn’t save on this device. Allow browser storage and try again.",
       );
       return false;
     }
     setSavedFingerprint(profileFingerprint(result.profile));
-    setSavedAnnouncement("Saved");
+    setSavedAnnouncement("Saved. Your next feed uses these choices.");
     return true;
   }
 
   return (
-    <section className="mx-auto mt-2 w-full max-w-[27rem] pb-8 text-white">
-      <header className="flex min-h-12 items-center px-1">
-        <h1 className="text-xl font-semibold tracking-[-0.03em]">Preferences</h1>
+    <section className="mx-auto mt-6 w-full max-w-[27rem] pb-8 text-white">
+      <header className="px-1">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f99aa]">
+          Your feed
+        </p>
+        <h1 className="mt-1.5 font-display text-[2rem] font-semibold tracking-[-0.05em]">
+          What shapes your feed
+        </h1>
+        <p className="mt-2 max-w-sm text-[13px] leading-5 text-[#9ca8bb]">
+          The choices below are used when live company listings are collected and ordered for you.
+        </p>
       </header>
 
-      <div className="mt-3 rounded-[1.25rem] border border-[#2b3542] bg-[#151d27] p-4 sm:p-5">
-        <div className="space-y-6">
+      <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#0a101d]/76 shadow-[0_24px_80px_rgba(0,0,0,.32),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-2xl">
+        <div className="grid grid-cols-2 divide-x divide-white/[0.08] border-b border-white/[0.08]">
+          <div className="min-w-0 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#71d7ad]">
+              Must match
+            </p>
+            <p className="mt-2 text-[12px] leading-5 text-[#d6dce6]">
+              {hardFilterSummary}
+            </p>
+          </div>
+          <div className="min-w-0 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#aaa3ff]">
+              Rank higher
+            </p>
+            <p className="mt-2 text-[12px] leading-5 text-[#d6dce6]">
+              {shortRoleSummary(profile.targetRoleFamilies)}
+              {profile.location ? ` · ${profile.location}` : " · US-wide"}
+            </p>
+          </div>
+        </div>
+
+        <div className="px-4 py-3 text-[11px] leading-5 text-[#8995a7]">
+          Known seniority, work setup, and employer-posted pay are hard filters. Role direction and home area change the order. Jobs with unclear details stay visible and say what is unknown.
+        </div>
+      </div>
+
+      <details className="group mt-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#090f1b]/78 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-2xl">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 text-[13px] font-semibold text-[#edf0f5] outline-none hover:bg-white/[0.035] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#aaa3ff]/50 [&::-webkit-details-marker]:hidden">
+          Edit what I see
+          <ChevronDown
+            className="size-4 text-[#9da8b9] transition-transform group-open:rotate-180 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        </summary>
+
+        <div className="space-y-6 border-t border-white/[0.08] p-4 sm:p-5">
           <fieldset>
-            <legend className="text-[13px] font-semibold text-white">Roles</legend>
+            <legend className="text-[13px] font-semibold text-white">Role directions</legend>
+            <p className="mt-1 text-[11px] leading-4 text-[#8490a3]">
+              These roles are ranked first. Keep at least one.
+            </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {ROLE_OPTIONS.map((role) => {
                 const active = activeRoles.has(role);
@@ -165,8 +232,11 @@ export function EmergencyProfilePanel() {
             </div>
           </fieldset>
 
-          <fieldset className="border-t border-[#2b3542] pt-5">
+          <fieldset className="border-t border-white/[0.08] pt-5">
             <legend className="text-[13px] font-semibold text-white">Level</legend>
+            <p className="mt-1 text-[11px] leading-4 text-[#8490a3]">
+              Jobs with a clearly stated level must be one you select. Keep at least one.
+            </p>
             <div className="mt-3 grid grid-cols-3 gap-2">
               {SENIORITY_OPTIONS.map((level) => {
                 const active = profile.desiredSeniorityLevels.includes(level);
@@ -192,8 +262,11 @@ export function EmergencyProfilePanel() {
             </div>
           </fieldset>
 
-          <fieldset className="border-t border-[#2b3542] pt-5">
-            <legend className="text-[13px] font-semibold text-white">Location</legend>
+          <fieldset className="border-t border-white/[0.08] pt-5">
+            <legend className="text-[13px] font-semibold text-white">Home area</legend>
+            <p className="mt-1 text-[11px] leading-4 text-[#8490a3]">
+              All results remain US-compatible; this decides which locations rank first.
+            </p>
             <div className="mt-3 grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
               {LOCATION_OPTIONS.map((option) => (
                 <ChoiceButton
@@ -207,8 +280,11 @@ export function EmergencyProfilePanel() {
             </div>
           </fieldset>
 
-          <fieldset className="border-t border-[#2b3542] pt-5">
-            <legend className="text-[13px] font-semibold text-white">Work mode</legend>
+          <fieldset className="border-t border-white/[0.08] pt-5">
+            <legend className="text-[13px] font-semibold text-white">Work setup</legend>
+            <p className="mt-1 text-[11px] leading-4 text-[#8490a3]">
+              A known setup must be one you select. Keep at least one.
+            </p>
             <div className="mt-3 grid grid-cols-3 gap-2">
               {WORK_MODE_OPTIONS.map((mode) => {
                 const active = profile.preferredWorkModes.includes(mode);
@@ -234,8 +310,11 @@ export function EmergencyProfilePanel() {
             </div>
           </fieldset>
 
-          <fieldset className="border-t border-[#2b3542] pt-5">
-            <legend className="text-[13px] font-semibold text-white">Salary</legend>
+          <fieldset className="border-t border-white/[0.08] pt-5">
+            <legend className="text-[13px] font-semibold text-white">Minimum salary</legend>
+            <p className="mt-1 text-[11px] leading-4 text-[#8490a3]">
+              Roles with employer-posted maximum pay below this are hidden. Estimates stay visible and labeled.
+            </p>
             <div className="mt-3 grid grid-cols-5 gap-1.5">
               {SALARY_OPTIONS.map((amount) => (
                 <ChoiceButton
@@ -254,21 +333,34 @@ export function EmergencyProfilePanel() {
             </div>
           </fieldset>
 
-          <div className="border-t border-[#2b3542] pt-5">
+          <div className="border-t border-white/[0.08] pt-5">
             <button
               type="button"
               onClick={persist}
               disabled={!dirty}
-              className="min-h-12 w-full rounded-xl bg-[#4f7fd8] px-5 text-sm font-semibold text-white outline-none transition-colors hover:bg-[#6693e2] focus-visible:ring-2 focus-visible:ring-[#8caef0] disabled:bg-[#26313e] disabled:text-[#7f8a99] motion-reduce:transition-none"
+              className="min-h-12 w-full rounded-xl bg-white px-5 text-sm font-semibold text-[#172035] shadow-[0_14px_32px_rgba(0,0,0,.24)] outline-none transition hover:bg-[#f2f4ff] focus-visible:ring-2 focus-visible:ring-white/60 disabled:bg-white/12 disabled:text-white/45 disabled:shadow-none motion-reduce:transition-none"
             >
-              {dirty ? "Save" : "Saved"}
+              {dirty ? "Save changes" : "Changes saved"}
             </button>
+            <Link
+              href="/"
+              onClick={
+                dirty
+                  ? (event) => {
+                      if (!persist()) event.preventDefault();
+                    }
+                  : undefined
+              }
+              className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-[12px] font-semibold text-[#c9c4ff] outline-none hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-[#aaa3ff]/50"
+            >
+              See updated feed <ArrowRight className="size-3.5" aria-hidden="true" />
+            </Link>
             <p
               className={cn(
-                "min-h-5 pt-2 text-center text-[11px]",
+                "min-h-5 text-center text-[11px]",
                 savedAnnouncement.startsWith("Couldn’t")
                   ? "text-amber-200"
-                  : "text-[#7da4ed]",
+                  : "text-[#71d7ad]",
               )}
               role="status"
               aria-live="polite"
@@ -277,7 +369,22 @@ export function EmergencyProfilePanel() {
             </p>
           </div>
         </div>
-      </div>
+      </details>
+
+      <details className="mt-4 rounded-[1.25rem] border border-white/[0.08] bg-white/[0.025] px-4 text-[#8995a7]">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[11px] font-semibold text-[#aeb7c5] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#aaa3ff]/45 [&::-webkit-details-marker]:hidden">
+          What can the live feed use right now?
+          <ChevronDown className="size-3.5" aria-hidden="true" />
+        </summary>
+        <div className="border-t border-white/[0.07] py-4 text-[11px] leading-5">
+          <p>
+            <span className="font-semibold text-[#d5dbe5]">Used now:</span> target titles, seniority, US location, known work setup, employer-posted pay, and experience requirements.
+          </p>
+          <p className="mt-2">
+            <span className="font-semibold text-[#d5dbe5]">Waiting for workspace sync:</span> résumé evidence, skill-level fit, authorization, and preferences learned from your swipes.
+          </p>
+        </div>
+      </details>
     </section>
   );
 }

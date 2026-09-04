@@ -104,17 +104,18 @@ function DockLinkContent({
     <>
       <span
         className={cn(
-          "dock-navigation-icon grid size-7 shrink-0 place-items-center rounded-lg transition-colors duration-150",
-          active && "text-[#7da4ed]",
+          "dock-navigation-icon grid size-11 shrink-0 place-items-center rounded-[0.95rem] border border-transparent transition-[background-color,border-color,box-shadow,transform] duration-200",
+          active &&
+            "border-white/[0.16] bg-white/[0.11] shadow-[inset_0_1px_0_rgba(255,255,255,.16),0_8px_22px_rgba(0,0,0,.2),0_0_24px_rgba(129,118,255,.08)]",
         )}
       >
         <Icon
-          className="size-[1.25rem]"
-          strokeWidth={active ? 2.25 : 1.9}
+          className="size-[1.4rem]"
+          strokeWidth={active ? 2.1 : 1.75}
           aria-hidden="true"
         />
       </span>
-      <span className="text-[0.66rem] font-semibold leading-none">{label}</span>
+      <span className="sr-only">{label}</span>
     </>
   );
 }
@@ -126,10 +127,10 @@ export function AppDock() {
 
   return (
     <nav
-      className="safe-area-dock-offset pointer-events-none fixed inset-x-0 bottom-0 z-40 px-2 sm:px-6"
+      className="safe-area-dock-offset pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 sm:px-6"
       aria-label="Primary navigation"
     >
-      <div className="obsidian-dock pointer-events-auto mx-auto grid w-[min(100%,30rem)] grid-cols-4 rounded-[1.15rem] border border-[#2b3542] bg-[#151d27] px-1 py-1.5 shadow-[0_14px_36px_rgba(0,0,0,.28)]">
+      <div className="obsidian-dock pointer-events-auto mx-auto grid w-[min(100%,26rem)] grid-cols-4 gap-1 rounded-[1.5rem] p-1 shadow-[0_16px_44px_rgba(0,0,0,.32)]">
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = matchesPath(pathname, href);
 
@@ -139,9 +140,10 @@ export function AppDock() {
               href={href}
               prefetch={true}
               className={cn(
-                "relative flex h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl text-[#7f8a99] outline-none transition-[color,background-color,transform] duration-150 hover:bg-[#1c2632] hover:text-[#d9dee5] active:scale-[.98] focus-visible:ring-2 focus-visible:ring-[#6f9bea] motion-reduce:transition-none",
-                active && "bg-[#1d2835] text-[#7da4ed]",
+                "relative grid h-14 min-w-0 place-items-center rounded-[1.15rem] text-white/52 outline-none transition-[color,transform] duration-200 hover:!bg-transparent hover:text-white/82 active:scale-[.97] focus-visible:ring-2 focus-visible:ring-white/45 motion-reduce:transition-none",
+                active && "text-white",
               )}
+              style={active ? { color: "#ffffff" } : undefined}
               aria-current={active ? "page" : undefined}
             >
               <DockLinkContent active={active} Icon={Icon} label={label} />
