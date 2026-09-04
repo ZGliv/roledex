@@ -1,11 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
-  MoveHorizontal,
+  Heart,
+  SlidersHorizontal,
+  Undo2,
+  X,
   RotateCcw,
   Search,
   WifiOff,
@@ -14,10 +18,8 @@ import {
 import { CompanyMark } from "@/features/jobs/components/company-mark";
 import { CachedFeedRecovery } from "@/features/jobs/components/cached-feed-recovery";
 import { companyVisual } from "@/features/jobs/components/company-visual";
-import {
-  safelyAnimate,
-  waitForDeckMotion,
-} from "@/features/jobs/components/job-deck-motion";
+import { useSwipeCard } from "./use-swipe-card";
+import { readDirectFeedCache, saveDirectFeedCache } from "../direct-feed-cache";
 import {
   DEFAULT_EMERGENCY_PROFILE,
   type EmergencyFeedJob,
@@ -35,6 +37,8 @@ import {
   readEmergencyProfile,
   readEmergencySeenJobIds,
   recordEmergencyDecisionWithStatus,
+  undoEmergencyDecision,
+  EMERGENCY_DECISIONS_CHANGED_EVENT,
 } from "@/features/jobs/emergency-feed-storage";
 
 const EmergencyJobDetails = dynamic(
@@ -95,10 +99,6 @@ const INITIAL_DIRECT_FEED_STATUS: DirectFeedStatus = {
   totalSourceBatches: 0,
   totalSources: 0,
 };
-
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 function encodeEmergencyProfile() {
   const profile = readEmergencyProfile() ?? DEFAULT_EMERGENCY_PROFILE;
@@ -195,10 +195,12 @@ function EmergencySavedList({
   announcement,
   jobs,
   onRemove,
+  onOpen,
 }: {
   announcement: string;
   jobs: EmergencyFeedJob[];
   onRemove: (job: EmergencyFeedJob) => void;
+  onOpen: (job: EmergencyFeedJob) => void;
 }) {
   const [query, setQuery] = useState("");
   const visibleJobs = useMemo(() => {
@@ -269,7 +271,7 @@ function EmergencySavedList({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[11px] font-semibold uppercase tracking-[0.11em] text-white/42">{job.company}</p>
-                    <h2 className="mt-1 text-[16px] font-semibold leading-5 tracking-[-0.025em] text-white">{job.title}</h2>
+                    <h2 className="mt-1 text-[16px] font-semibold leading-5 tracking-[-0.025em] text-white"><button type="button" onClick={() => onOpen(job)} className="text-left outline-none focus-visible:underline">{job.title}</button></h2>
                     <p className="mt-2 text-[13px] font-semibold text-white/82">{job.salaryDisplay}</p>
                     <p className="mt-1 truncate text-[11px] text-white/46">{job.location} · {job.workArrangement}</p>
                   </div>
@@ -287,7 +289,7 @@ function EmergencySavedList({
           })}
         </div>
       )}
-      <p className="mt-4 text-center text-[10px] leading-4 text-white/38">Saved on this device and queued for workspace sync.</p>
+      <Link href="/command-center" className="mt-5 flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#a89fff]/25 bg-[#8176ff]/10 text-sm font-medium text-[#c8c1ff]">Track applications <ArrowUpRight className="size-4" aria-hidden="true" /></Link>
     </div>
   );
 }
@@ -311,15 +313,10 @@ export function EmergencyFeedDeck({
   const [emergencyProfile, setEmergencyProfile] =
     useState(DEFAULT_EMERGENCY_PROFILE);
   const [selectedJob, setSelectedJob] = useState<EmergencyFeedJob | null>(null);
-  const activeRef = useRef<HTMLElement>(null);
-  const frameRef = useRef<number | null>(null);
-  const activeAnimationRef = useRef<Animation | null>(null);
-  const cancelMotionCompletionRef = useRef<(() => void) | null>(null);
-  const decisionLockedRef = useRef(false);
+  const [lastDecision, setLastDecision] = useState<{ job: EmergencyFeedJob; decidedAt: string } | null>(null);
   const detailsOpeningRef = useRef(false);
   const focusAfterDecisionRef = useRef(false);
   const emptyStateRef = useRef<HTMLElement>(null);
-  const suppressClickUntilRef = useRef(0);
   const directFeedRequestRef = useRef<{
     controller: AbortController | null;
     consecutiveFailures: number;
@@ -335,19 +332,6 @@ export function EmergencyFeedDeck({
   });
   const seenJobIdsRef = useRef(new Set<string>());
   const seenListingsRef = useRef(new Set<string>());
-  const pointer = useRef({
-    active: false,
-    bounds: null as DOMRect | null,
-    glare: null as HTMLElement | null,
-    id: -1,
-    lastAt: 0,
-    lastX: 0,
-    maxDistance: 0,
-    startX: 0,
-    startY: 0,
-    vx: 0,
-    x: 0,
-  });
 
   const fetchNextDirectFeedPage = useCallback(
     async (generation: number, initial: boolean) => {
@@ -399,7 +383,7 @@ export function EmergencyFeedDeck({
         setFeed((state) => ({
           kind: "ready",
           jobs:
-            initial || state.kind !== "ready"
+            state.kind !== "ready"
               ? freshJobs
               : [...state.jobs, ...freshJobs],
         }));
@@ -450,10 +434,15 @@ export function EmergencyFeedDeck({
 
   useEffect(() => {
     if (savedView) {
-      const frame = requestAnimationFrame(() => {
-        setFeed({ kind: "ready", jobs: emergencySavedJobs() });
-      });
-      return () => cancelAnimationFrame(frame);
+      const update = () => setFeed({ kind: "ready", jobs: emergencySavedJobs() });
+      const frame = requestAnimationFrame(update);
+      window.addEventListener(EMERGENCY_DECISIONS_CHANGED_EVENT, update);
+      window.addEventListener("storage", update);
+      return () => {
+        cancelAnimationFrame(frame);
+        window.removeEventListener(EMERGENCY_DECISIONS_CHANGED_EVENT, update);
+        window.removeEventListener("storage", update);
+      };
     }
 
     const requestState = directFeedRequestRef.current;
@@ -470,9 +459,15 @@ export function EmergencyFeedDeck({
     seenListingsRef.current = new Set(
       readEmergencyDecisions().map((item) => listingIdentity(item.job)),
     );
+    const profile = readEmergencyProfile() ?? DEFAULT_EMERGENCY_PROFILE;
+    const cached = readDirectFeedCache(profile).filter((job) => !seenJobIdsRef.current.has(job.id));
+    cached.forEach((job) => {
+      seenJobIdsRef.current.add(job.id);
+      seenListingsRef.current.add(listingIdentity(job));
+    });
     const frame = requestAnimationFrame(() => {
       if (requestState.generation !== generation) return;
-      setFeed({ kind: "loading" });
+      setFeed(cached.length ? { kind: "ready", jobs: cached } : { kind: "loading" });
       detailsOpeningRef.current = false;
       setSelectedJob(null);
       setEmergencyProfile(readEmergencyProfile() ?? DEFAULT_EMERGENCY_PROFILE);
@@ -491,6 +486,13 @@ export function EmergencyFeedDeck({
   }, [fetchNextDirectFeedPage, profileRevision, refreshKey, savedView]);
 
   const jobs = feed.kind === "ready" ? feed.jobs : [];
+
+  useEffect(() => {
+    if (savedView || feed.kind !== "ready") return;
+    // Schedule optional cache serialization after the new card has painted.
+    const timer = window.setTimeout(() => saveDirectFeedCache(feed.jobs, emergencyProfile), 350);
+    return () => window.clearTimeout(timer);
+  }, [feed, emergencyProfile, savedView]);
 
   useEffect(() => {
     if (
@@ -566,19 +568,11 @@ export function EmergencyFeedDeck({
     [emergencyProfile, next],
   );
   const openDetails = useCallback((job: EmergencyFeedJob) => {
-    if (decisionLockedRef.current || detailsOpeningRef.current) return;
+    if (detailsOpeningRef.current) return;
     detailsOpeningRef.current = true;
     setSelectedJob(job);
   }, []);
 
-  useEffect(() => {
-    if (!focusAfterDecisionRef.current) return;
-    const frame = requestAnimationFrame(() => {
-      (activeRef.current ?? emptyStateRef.current)?.focus();
-      focusAfterDecisionRef.current = false;
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [current?.id]);
   const refresh = useCallback(() => {
     setFeed({ kind: "loading" });
     setRefreshKey((value) => value + 1);
@@ -599,228 +593,45 @@ export function EmergencyFeedDeck({
     setAnnouncement(`${job.title} removed from saved jobs.`);
   }, []);
 
-  const resetCard = useCallback(() => {
-    const card = activeRef.current;
-    if (!card) return;
-    card.style.transition = prefersReducedMotion()
-      ? "none"
-      : "transform 340ms cubic-bezier(.2,.85,.25,1)";
-    card.style.transform = "translate3d(0,0,0) rotateX(0deg) rotateY(0deg) rotateZ(0deg)";
-    card.dataset.interacting = "false";
-    card.querySelector<HTMLElement>(".job-card-interactive-glare")?.style.removeProperty("opacity");
-    window.setTimeout(() => {
-      if (activeRef.current === card) card.style.removeProperty("transition");
-    }, 360);
-    pointer.current.x = 0;
-    pointer.current.vx = 0;
-    pointer.current.maxDistance = 0;
-  }, []);
-
-  const decide = useCallback(
-    (decision: "saved" | "skipped") => {
-      if (
-        !current ||
-        decisionLockedRef.current ||
-        detailsOpeningRef.current
-      ) {
-        return;
-      }
-      const decidedJob = current;
-      decisionLockedRef.current = true;
-      const result = recordEmergencyDecisionWithStatus(decidedJob, decision);
-      if (!result.persisted) {
-        setAnnouncement(
-          result.reason === "saved_limit"
-            ? "Your on-device shortlist is full. Remove a saved job before adding another."
-            : decision === "saved"
-            ? "Couldn’t save this job on your device. Allow browser storage and try again."
-            : "Couldn’t remember this pass. Allow browser storage and try again.",
-        );
-        decisionLockedRef.current = false;
-        return;
-      }
-      setAnnouncement(
-        decision === "saved"
-          ? `${decidedJob.title} saved on this device.`
-          : `${decidedJob.title} passed.`,
-      );
-      const card = activeRef.current;
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-      cancelMotionCompletionRef.current?.();
-      cancelMotionCompletionRef.current = null;
-      activeAnimationRef.current?.cancel();
-      activeAnimationRef.current = null;
-
-      const direction = decision === "saved" ? 1 : -1;
-      const duration = 230;
-      const animation =
-        card && !prefersReducedMotion()
-          ? safelyAnimate(
-              card,
-          [
-            { transform: getComputedStyle(card).transform, opacity: 1 },
-            {
-              transform: `translate3d(${direction * (window.innerWidth + 420)}px, 18px, 0) rotateZ(${direction * 14}deg)`,
-              opacity: 0.25,
-            },
-          ],
-              {
-                duration,
-                easing: "cubic-bezier(.24,.76,.26,1)",
-                fill: "forwards",
-              },
-            )
-          : null;
-      activeAnimationRef.current = animation;
-      cancelMotionCompletionRef.current = waitForDeckMotion({
-        animations: [animation],
-        durationMs: duration,
-        onComplete: () => {
-          cancelMotionCompletionRef.current = null;
-          activeAnimationRef.current?.cancel();
-          activeAnimationRef.current = null;
-          setFeed((state) =>
-            state.kind === "ready"
-              ? {
-                  ...state,
-                  jobs: state.jobs.filter((job) => job.id !== decidedJob.id),
-                }
-              : state,
-          );
-          pointer.current = {
-            active: false,
-            bounds: null,
-            glare: null,
-            id: -1,
-            lastX: 0,
-            lastAt: 0,
-            maxDistance: 0,
-            startX: 0,
-            startY: 0,
-            x: 0,
-            vx: 0,
-          };
-          decisionLockedRef.current = false;
-        },
-      });
-    },
-    [current],
-  );
-
-  useEffect(
-    () => () => {
-      cancelMotionCompletionRef.current?.();
-      cancelMotionCompletionRef.current = null;
-      activeAnimationRef.current?.cancel();
-      activeAnimationRef.current = null;
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-    },
-    [],
-  );
-
-  const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
-    if (
-      !current ||
-      decisionLockedRef.current ||
-      detailsOpeningRef.current ||
-      selectedJob !== null ||
-      !event.isPrimary ||
-      (event.pointerType === "mouse" && event.button !== 0)
-    ) {
+  const commitDecision = useCallback((decision: "saved" | "skipped") => {
+    if (!current) return;
+    const result = recordEmergencyDecisionWithStatus(current, decision);
+    if (!result.persisted) {
+      setAnnouncement("Couldn’t save your change. Free some browser storage and try again.");
       return;
     }
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture is best-effort in older embedded mobile browsers.
-    }
-    pointer.current = {
-      active: true,
-      bounds: event.currentTarget.getBoundingClientRect(),
-      glare: event.currentTarget.querySelector<HTMLElement>(
-        ".job-card-interactive-glare",
-      ),
-      id: event.pointerId,
-      lastAt: performance.now(),
-      lastX: event.clientX,
-      maxDistance: 0,
-      startX: event.clientX,
-      startY: event.clientY,
-      vx: 0,
-      x: 0,
-    };
-    event.currentTarget.style.transition = "none";
-    event.currentTarget.dataset.interacting = "true";
-  };
+    setLastDecision({ job: current, decidedAt: result.decision.decidedAt });
+    setAnnouncement(`${current.title} ${decision === "saved" ? "saved" : "passed"}.`);
+    setFeed((state) => state.kind === "ready"
+      ? { ...state, jobs: state.jobs.filter((job) => job.id !== current.id) } : state);
+  }, [current]);
 
-  const onPointerMove = (event: React.PointerEvent<HTMLElement>) => {
-    if (!pointer.current.active || pointer.current.id !== event.pointerId) return;
-    const card = activeRef.current;
-    if (!card) return;
-    const now = performance.now();
-    const dx = event.clientX - pointer.current.startX;
-    const dy = event.clientY - pointer.current.startY;
-    const elapsed = Math.max(1, now - pointer.current.lastAt);
-    pointer.current.vx = (event.clientX - pointer.current.lastX) / elapsed;
-    pointer.current.lastX = event.clientX;
-    pointer.current.lastAt = now;
-    pointer.current.x = dx;
-    pointer.current.maxDistance = Math.max(pointer.current.maxDistance, Math.hypot(dx, dy));
-    const bounds = pointer.current.bounds;
-    if (!bounds) return;
-    const px = (event.clientX - bounds.left) / Math.max(1, bounds.width) - 0.5;
-    const py = (event.clientY - bounds.top) / Math.max(1, bounds.height) - 0.5;
-    const moveX = Math.abs(dx) < 14 ? 0 : dx - Math.sign(dx) * 14;
-    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-    frameRef.current = requestAnimationFrame(() => {
-      frameRef.current = null;
-      card.style.transform = `translate3d(${moveX}px,0,0) rotateX(${(-py * 9).toFixed(2)}deg) rotateY(${(px * 12).toFixed(2)}deg) rotateZ(${(moveX / Math.max(bounds.width, 1) * 8).toFixed(2)}deg)`;
-      const glare = pointer.current.glare;
-      if (glare) {
-        glare.style.transform = `translate3d(${(px * 28).toFixed(1)}px, ${(py * 38).toFixed(1)}px, 1px) scale(1.08)`;
-        glare.style.opacity = String(Math.min(0.34, 0.1 + Math.hypot(px, py) * 0.2));
-      }
+  const { activeRef, nextRef, busy, decide, handlers } = useSwipeCard({
+    id: current?.id,
+    disabled: selectedJob !== null,
+    onDecision: commitDecision,
+    onOpen: () => { if (current) openDetails(current); },
+  });
+
+  useEffect(() => {
+    if (!focusAfterDecisionRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      (activeRef.current ?? emptyStateRef.current)?.focus();
+      focusAfterDecisionRef.current = false;
     });
-    if (Math.abs(dx) > Math.abs(dy) + 5) event.preventDefault();
-  };
+    return () => cancelAnimationFrame(frame);
+  }, [current?.id, activeRef]);
 
-  const endPointer = (event: React.PointerEvent<HTMLElement>) => {
-    if (!pointer.current.active || pointer.current.id !== event.pointerId) return;
-    pointer.current.active = false;
-    try {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-    } catch {
-      // The browser may have already released capture during a native gesture.
+  const undo = () => {
+    if (!lastDecision || busy || selectedJob) return;
+    if (!undoEmergencyDecision(lastDecision.job.id, lastDecision.decidedAt)) {
+      setAnnouncement("Couldn’t undo this swipe. It may already have synced.");
+      return;
     }
-    const shouldDismiss = Math.abs(pointer.current.x) > 82 || Math.abs(pointer.current.vx) > 0.55;
-    if (shouldDismiss) {
-      suppressClickUntilRef.current = performance.now() + 450;
-      const direction =
-        Math.abs(pointer.current.x) > 16
-          ? pointer.current.x
-          : pointer.current.vx;
-      decide(direction >= 0 ? "saved" : "skipped");
-    }
-    else {
-      const shouldOpen = pointer.current.maxDistance < 10;
-      if (!shouldOpen) suppressClickUntilRef.current = performance.now() + 450;
-      resetCard();
-      if (shouldOpen && current) {
-        openDetails(current);
-      }
-    }
-  };
-
-  const cancelPointer = (event: React.PointerEvent<HTMLElement>) => {
-    if (!pointer.current.active || pointer.current.id !== event.pointerId) return;
-    pointer.current.active = false;
-    suppressClickUntilRef.current = performance.now() + 450;
-    resetCard();
+    const restored = lastDecision.job;
+    setFeed((state) => ({ kind: "ready", jobs: [restored, ...(state.kind === "ready" ? state.jobs.filter((job) => job.id !== restored.id) : [])] }));
+    setLastDecision(null);
+    setAnnouncement(`${restored.title} restored.`);
   };
 
   if (feed.kind === "loading") {
@@ -870,7 +681,7 @@ export function EmergencyFeedDeck({
 
   if (savedView && feed.kind === "ready") {
     const currentIds = new Set(feed.jobs.map((job) => job.id));
-    const legacySnapshot = fallbackSnapshot
+    const legacySnapshot = fallbackSnapshot?.kind === "saved"
       ? {
           ...fallbackSnapshot,
           jobs: fallbackSnapshot.jobs.filter((job) => !currentIds.has(job.id)),
@@ -882,6 +693,7 @@ export function EmergencyFeedDeck({
           announcement={announcement}
           jobs={feed.jobs}
           onRemove={removeSavedJob}
+          onOpen={openDetails}
         />
         {legacySnapshot && legacySnapshot.jobs.length > 0 ? (
           <div className="mt-8 border-t border-white/[0.08] pt-1">
@@ -891,6 +703,7 @@ export function EmergencyFeedDeck({
             />
           </div>
         ) : null}
+        {selectedJob ? <EmergencyJobDetails job={selectedJob} open read={emergencyJobRead(selectedJob, emergencyProfile)} returnFocusRef={activeRef} onReady={() => { detailsOpeningRef.current = false; }} onOpenChange={(open) => { if (!open) { detailsOpeningRef.current = false; setSelectedJob(null); } }} onDecision={(decision) => { if (decision === "skipped") removeSavedJob(selectedJob); detailsOpeningRef.current = false; setSelectedJob(null); }} /> : null}
         <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
       </>
     );
@@ -955,6 +768,7 @@ export function EmergencyFeedDeck({
                 ? `You reviewed the strongest relevant roles from ${directFeedStatus.successfulSources} responding company boards. ${directFeedStatus.failedSources} unavailable ${directFeedStatus.failedSources === 1 ? "board is" : "boards are"} scheduled for the next automatic check.`
                 : `You reviewed the strongest relevant roles from all ${directFeedStatus.totalSources || "available"} official company boards. New postings are checked again automatically.`}
         </p>
+        {lastDecision ? <button type="button" onClick={undo} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-white/10 px-6 text-sm font-semibold"><Undo2 className="size-4" aria-hidden="true" /> Undo last swipe</button> : null}
         {!savedView ? (
           <button type="button" onClick={refresh} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full border border-white/15 px-6 text-sm font-semibold">
             <RotateCcw className="size-4" aria-hidden="true" /> Check now
@@ -967,21 +781,10 @@ export function EmergencyFeedDeck({
   return (
     <>
     <section className="relative z-0 mx-auto mt-2 w-full max-w-[25rem]">
-      <div className="mx-auto flex min-h-9 w-full max-w-[23rem] items-center justify-between gap-3 px-1 text-[10px] font-medium text-[#929db2]">
-        <span className="min-w-0 truncate">
-          {directFeedStatus.loadingMore
-            ? "Checking more official boards…"
-            : directFeedStatus.totalSources > 0
-              ? `${directFeedStatus.checkedSources}/${directFeedStatus.totalSources} official boards checked`
-              : "For You · official company boards"}
-          {directFeedStatus.failedSources > 0
-            ? ` · ${directFeedStatus.failedSources} unavailable`
-            : ""}
-        </span>
-        <span className="shrink-0 tabular-nums">
-          {jobs.length} ready on this device
-        </span>
-      </div>
+      <header className="mx-auto flex h-12 max-w-[23rem] items-center justify-between px-1">
+        <Link href="/" className="font-display text-xl font-semibold tracking-[-0.045em] text-white">Role<span className="text-[#aba3ff]">Dex</span></Link>
+        <Link href="/profile#direction" aria-label="Edit job preferences" className="deck-mini-control"><SlidersHorizontal className="size-4" aria-hidden="true" /></Link>
+      </header>
       {announcement.startsWith("Couldn’t") ? (
         <p
           className="mx-auto mb-2 max-w-[23rem] rounded-xl border border-amber-300/20 bg-amber-300/[0.08] px-3 py-2 text-center text-[11px] leading-4 text-amber-100"
@@ -990,54 +793,33 @@ export function EmergencyFeedDeck({
           {announcement}
         </p>
       ) : null}
-      <div data-feed-status="true" data-gesture-hint="true" className="job-deck-stage relative isolate mx-auto mt-1 w-full max-w-[23rem] [perspective:1100px]">
+      <div data-direct-deck="true" className="job-deck-stage relative isolate mx-auto mt-2 w-full max-w-[23rem]">
         {next && nextRead ? (
-          <div className="deck-card-under pointer-events-none absolute inset-0 origin-bottom opacity-75 [backface-visibility:hidden]" aria-hidden="true" style={{ transform: "translate3d(0,10px,-24px) scale(.965)" }}>
+          <div ref={nextRef} className="deck-card-under pointer-events-none absolute inset-0 origin-bottom opacity-75 [backface-visibility:hidden]" aria-hidden="true" style={{ transform: "translate3d(0,10px,0) scale(.965)" }}>
             <EmergencyJobCard job={next} read={nextRead} preview />
           </div>
         ) : null}
         <article
           key={current.id}
           ref={activeRef}
-          className="deck-card-active absolute inset-0 z-10 touch-pan-y cursor-grab select-none rounded-[1.75rem] outline-none [backface-visibility:hidden] [transform-style:preserve-3d] [transform:translateZ(0)] active:cursor-grabbing focus-visible:ring-3 focus-visible:ring-primary/45"
+          className="deck-card-active absolute inset-0 z-10 [touch-action:pinch-zoom] cursor-grab select-none rounded-[1.75rem] outline-none [backface-visibility:hidden] [transform:translateZ(0)] active:cursor-grabbing focus-visible:ring-3 focus-visible:ring-primary/45"
           tabIndex={0}
           role="button"
           aria-label={`${current.title} at ${current.company}. Tap for the job brief, swipe left to pass, or swipe right to save.`}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endPointer}
-          onPointerCancel={cancelPointer}
-          onLostPointerCapture={cancelPointer}
-          onClick={() => {
-            if (
-              current &&
-              !decisionLockedRef.current &&
-              !detailsOpeningRef.current &&
-              selectedJob === null &&
-              !pointer.current.active &&
-              performance.now() >= suppressClickUntilRef.current
-            ) {
-              openDetails(current);
-            }
-          }}
-          onKeyDown={(event) => {
-            if (detailsOpeningRef.current || selectedJob !== null) return;
-            if (event.key === "ArrowLeft") decide("skipped");
-            if (event.key === "ArrowRight") decide("saved");
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              openDetails(current);
-            }
-          }}
+          {...handlers}
+          aria-disabled={busy}
+          aria-keyshortcuts="ArrowLeft ArrowRight Enter Space"
         >
           <div aria-hidden="true" className="deck-stamp deck-stamp-save pointer-events-none absolute left-5 top-7 z-30 opacity-0">Save</div>
           <div aria-hidden="true" className="deck-stamp deck-stamp-pass pointer-events-none absolute right-5 top-7 z-30 opacity-0">Pass</div>
           <EmergencyJobCard job={current} read={currentRead} />
         </article>
       </div>
-      <div className="deck-gesture-hint mx-auto mt-2 flex max-w-[23rem] items-center justify-center gap-2 px-2 text-[11px] leading-4 text-[#929db2]" role="status">
-        <MoveHorizontal className="size-3.5 text-[#8d84ff]" aria-hidden="true" />
-        <span>Tilt gently · swipe to decide · tap for job brief</span>
+      <div className="deck-decision-controls" aria-label="Job actions">
+        <button type="button" className="deck-mini-control" onClick={undo} disabled={!lastDecision || busy} aria-label="Undo last swipe"><Undo2 className="size-[18px]" aria-hidden="true" /></button>
+        <button type="button" className="deck-decision-button deck-decision-pass" disabled={busy} onClick={() => decide("skipped")} aria-label="Pass job"><X className="size-6" aria-hidden="true" /></button>
+        <button type="button" className="deck-decision-button deck-decision-save" disabled={busy} onClick={() => decide("saved")} aria-label="Save job"><Heart className="size-6" aria-hidden="true" /></button>
+        <button type="button" className="deck-mini-control" onClick={() => openDetails(current)} disabled={busy} aria-label="Open job details"><ArrowUpRight className="size-[18px]" aria-hidden="true" /></button>
       </div>
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
     </section>
@@ -1060,7 +842,7 @@ export function EmergencyFeedDeck({
           focusAfterDecisionRef.current = true;
           detailsOpeningRef.current = false;
           setSelectedJob(null);
-          decide(decision);
+          commitDecision(decision);
         }}
       />
     ) : null}

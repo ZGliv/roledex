@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { CompanyMark } from "@/features/jobs/components/company-mark";
+import { ShareJobButton } from "./share-job-button";
 import { companyVisual } from "@/features/jobs/components/company-visual";
 import { jobCardTemplateForCompany } from "@/features/jobs/components/job-card-templates";
 import type { EmergencyFeedJob } from "@/features/jobs/emergency-feed";
@@ -94,6 +95,7 @@ export function EmergencyJobDetails({
                 <p className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-[#77839a]">Job brief</p>
                 <p className="mt-0.5 truncate text-[11px] text-[#aeb7c7]">Official {read.source} feed · {read.freshness.toLocaleLowerCase("en-US")}</p>
               </div>
+              <ShareJobButton title={job.title} company={job.company} url={job.sourceUrl} />
               <Dialog.Close
                 type="button"
                 aria-label="Close job brief"

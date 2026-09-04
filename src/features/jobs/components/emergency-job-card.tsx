@@ -125,14 +125,14 @@ export const EmergencyJobCard = memo(function EmergencyJobCard({
               <p className="mt-0.5 line-clamp-2 text-[10.5px] leading-[0.9rem] text-[#c3cad7]">{requirementSignal(job)}</p>
             </div>
           </div>
-          <div className="grid grid-cols-[0.9rem_minmax(0,1fr)] gap-2 border-t border-white/[0.07] pt-1.5">
+          <div className="job-card-fit grid grid-cols-[0.9rem_minmax(0,1fr)] gap-2 border-t border-white/[0.07] pt-1.5">
             <Sparkles className="mt-0.5 size-3.5 text-[#59d2a2]" strokeWidth={1.8} aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-[8.5px] font-semibold uppercase tracking-[0.09em] text-[#72dbb2]">Why it surfaced</p>
               <p className="mt-0.5 line-clamp-2 text-[10.5px] leading-[0.9rem] text-[#c3cad7]">{read.fit}</p>
             </div>
           </div>
-          <div className="grid grid-cols-[0.9rem_minmax(0,1fr)_1.6rem] gap-2 border-t border-white/[0.07] pt-1.5">
+          <div className="job-card-risk grid grid-cols-[0.9rem_minmax(0,1fr)_1.6rem] gap-2 border-t border-white/[0.07] pt-1.5">
             <ShieldAlert className="mt-0.5 size-3.5 text-[#aaa3ff]" strokeWidth={1.8} aria-hidden="true" />
             <div className="min-w-0">
               <p className="text-[8.5px] font-semibold uppercase tracking-[0.09em] text-[#b9b3ff]">Verify</p>

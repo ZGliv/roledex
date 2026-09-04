@@ -75,7 +75,6 @@ type GestureState = {
 };
 
 const TAP_SLOP = 12;
-const TILT_RESISTANCE_PX = 18;
 const TILT_TRAVEL_PX = 48;
 const HORIZONTAL_LOCK_RATIO = 1.3;
 const MIN_FLING_DISTANCE = 24;
@@ -124,15 +123,7 @@ function clamp(value: number, minimum: number, maximum: number) {
 }
 
 function translationWithTiltResistance(travelX: number) {
-  const distance = Math.abs(travelX);
-
-  // Small movements mostly rotate the card in place. Translation then eases
-  // continuously toward 1:1 tracking, avoiding a dead-zone snap when the
-  // user's finger crosses a fixed threshold.
-  const translatedDistance =
-    distance -
-    TILT_RESISTANCE_PX * Math.tanh(distance / TILT_RESISTANCE_PX);
-  return Math.sign(travelX) * translatedDistance;
+  return travelX;
 }
 
 function tiltFromTravel(travel: number) {
@@ -147,8 +138,8 @@ function cardTransform(
 ) {
   const progress = clamp(Math.abs(x) / Math.max(width, 1), 0, 1);
   const rotationZ = clamp((x / Math.max(width, 1)) * 9.5, -9.5, 9.5);
-  const rotationX = clamp(pointerY * -6.2, -6.6, 6.6);
-  const rotationY = clamp(pointerX * 7.6, -8, 8);
+  const rotationX = clamp(pointerY * -1.5, -1.5, 1.5);
+  const rotationY = clamp(pointerX * 2, -2, 2);
   const pointerEnergy = clamp(Math.hypot(pointerX, pointerY), 0, 1);
   const scale = 1 + pointerEnergy * 0.002 - progress * 0.005;
 

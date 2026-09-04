@@ -21,11 +21,8 @@ import {
   lazy,
   Suspense,
   type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
-  useId,
   useRef,
   useState,
 } from "react";
@@ -48,7 +45,7 @@ import {
   pendingInteractions,
   reconcileInteractions,
 } from "./outbox";
-import { mobileCardKeyboardAction } from "./card-interaction";
+import { useSwipeCard } from "@/features/jobs/components/use-swipe-card";
 import { mobileClientId } from "./client-id";
 import { demoFeedCards } from "./demo-feed";
 import { MobileJobCard } from "./mobile-job-card";
@@ -69,7 +66,6 @@ type FeedCache = {
 const FEED_CACHE_KEY = "jobswipe:mobile-feed:v2";
 const SAVED_CACHE_KEY = "jobswipe:mobile-saved:v1";
 const DEMO_REVEAL_MS = 900;
-const SWIPE_THRESHOLD = 92;
 
 function readCachedFeed(): FeedCache | null {
   try {
@@ -130,149 +126,28 @@ function MobileRoleCard({
   onDecision: (decision: "saved" | "skipped") => void;
   onOpen: () => void;
 }) {
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  const frameRef = useRef<number | null>(null);
-  const instructionsId = useId();
-  const decisionPending = useRef(false);
-  const gesture = useRef({
-    active: false,
-    clientX: 0,
-    lastClientX: 0,
-    lastTime: 0,
-    maxDistance: 0,
-    pointerId: -1,
-    startX: 0,
-    velocityX: 0,
+  const { activeRef, busy, handlers } = useSwipeCard<HTMLDivElement>({
+    id: card.exposure.id,
+    disabled: false,
+    onOpen,
+    onDecision: (decision) => {
+      void Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
+      onDecision(decision);
+    },
   });
-
-  const reset = useCallback(() => {
-    if (frameRef.current !== null) {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    }
-    gesture.current.active = false;
-    const surface = surfaceRef.current;
-    if (!surface) return;
-    surface.style.transition = "transform 420ms cubic-bezier(.22,1,.36,1)";
-    surface.style.transform = "translate3d(0,0,0) rotate(0)";
-    surface.style.removeProperty("opacity");
-    surface.style.setProperty("--swipe-pass-opacity", "0");
-    surface.style.setProperty("--swipe-save-opacity", "0");
-    surface.dataset.interacting = "false";
-  }, []);
-
-  const paintGesture = useCallback(() => {
-    frameRef.current = null;
-    const state = gesture.current;
-    const surface = surfaceRef.current;
-    if (!state.active || !surface) return;
-    const deltaX = state.clientX - state.startX;
-    const dragIntent = Math.max(0, Math.min(1, (Math.abs(deltaX) - 12) / 30));
-    const resistedX = Math.sign(deltaX) * Math.max(0, Math.abs(deltaX) - 12) * dragIntent;
-    const rotateZ = Math.max(-8, Math.min(8, resistedX / 22));
-    surface.style.setProperty("--swipe-pass-opacity", deltaX < 0 ? String(Math.min(1, Math.abs(resistedX) / 90)) : "0");
-    surface.style.setProperty("--swipe-save-opacity", deltaX > 0 ? String(Math.min(1, Math.abs(resistedX) / 90)) : "0");
-    surface.style.transform = `translate3d(${resistedX}px,${-Math.abs(resistedX) * 0.015}px,0) rotate(${rotateZ}deg)`;
-  }, []);
-
-  function pointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    const surface = surfaceRef.current;
-    if (!surface || event.button !== 0 || decisionPending.current) return;
-    gesture.current = {
-      active: true,
-      clientX: event.clientX,
-      lastClientX: event.clientX,
-      lastTime: event.timeStamp,
-      maxDistance: 0,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      velocityX: 0,
-    };
-    surface.setPointerCapture(event.pointerId);
-    surface.style.transition = "none";
-    surface.dataset.interacting = "true";
-  }
-
-  function pointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    const state = gesture.current;
-    if (!state.active || state.pointerId !== event.pointerId) return;
-    const deltaX = event.clientX - state.startX;
-    state.maxDistance = Math.max(state.maxDistance, Math.abs(deltaX));
-    const elapsed = Math.max(1, event.timeStamp - state.lastTime);
-    const instantaneousVelocity = (event.clientX - state.lastClientX) / elapsed;
-    state.velocityX = state.velocityX * 0.72 + instantaneousVelocity * 0.28;
-    state.lastClientX = event.clientX;
-    state.lastTime = event.timeStamp;
-    state.clientX = event.clientX;
-    if (frameRef.current === null) frameRef.current = requestAnimationFrame(paintGesture);
-  }
-
-  function pointerUp(event: ReactPointerEvent<HTMLDivElement>) {
-    const state = gesture.current;
-    const surface = surfaceRef.current;
-    if (!state.active || state.pointerId !== event.pointerId || !surface) return;
-    if (frameRef.current !== null) {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    }
-    state.active = false;
-    const deltaX = event.clientX - state.startX;
-    const projectedX = deltaX + state.velocityX * 110;
-    if (Math.abs(deltaX) >= SWIPE_THRESHOLD || (Math.abs(deltaX) >= 36 && Math.abs(projectedX) >= SWIPE_THRESHOLD)) {
-      dismiss(projectedX > 0 ? "saved" : "skipped");
-      return;
-    }
-    if (state.maxDistance < 9) onOpen();
-    reset();
-  }
-
-  function dismiss(decision: "saved" | "skipped") {
-    const surface = surfaceRef.current;
-    if (!surface || decisionPending.current) return;
-    decisionPending.current = true;
-    const direction = decision === "saved" ? 1 : -1;
-    surface.style.transition = "transform 260ms cubic-bezier(.2,.82,.25,1), opacity 220ms ease";
-    surface.style.transform = `translate3d(${direction * (window.innerWidth + 120)}px,-16px,0) rotate(${direction * 14}deg)`;
-    surface.style.opacity = "0";
-    void Haptics.impact({ style: ImpactStyle.Medium }).catch(() => undefined);
-    window.setTimeout(() => onDecision(decision), 250);
-  }
-
-  function keyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    if (event.repeat || decisionPending.current) return;
-    const action = mobileCardKeyboardAction(event.key);
-    if (!action) return;
-    event.preventDefault();
-    if (action === "open") {
-      onOpen();
-      return;
-    }
-    dismiss(action);
-  }
-
   return (
     <div
-      ref={surfaceRef}
+      ref={activeRef}
       className="mobile-role-card"
       data-interacting="false"
       role="button"
       tabIndex={0}
-      aria-describedby={instructionsId}
+      aria-disabled={busy}
       aria-keyshortcuts="ArrowLeft ArrowRight Enter Space"
-      aria-label={`Open ${card.title} at ${card.company}. ${card.compensation.display}. ${card.location}. ${workArrangement(card)}. ${card.fit.whyItFits}`}
-      onClick={(event) => {
-        if (event.detail === 0 && !decisionPending.current) onOpen();
-      }}
-      onKeyDown={keyDown}
-      onPointerDown={pointerDown}
-      onPointerMove={pointerMove}
-      onPointerUp={pointerUp}
-      onPointerCancel={reset}
+      aria-label={`Open ${card.title} at ${card.company}. ${card.compensation.display}. ${card.location}.`}
+      {...handlers}
     >
       <MobileJobCard card={card} />
-      <span id={instructionsId} className="sr-only">
-        Press Enter or Space to open details, Left Arrow to pass, or Right Arrow to save.
-      </span>
       <div className="mobile-swipe-cue mobile-swipe-cue-pass">Pass</div>
       <div className="mobile-swipe-cue mobile-swipe-cue-save">Save</div>
     </div>

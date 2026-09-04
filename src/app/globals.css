@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
-  --font-heading: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-bricolage), "Geist", ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -1088,8 +1088,64 @@
       ),
       44rem
     );
-    transition: height 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    /* Keep the deck stable while Safari expands and contracts its browser chrome. */
+    transition: none;
   }
+
+  .job-deck-stage[data-direct-deck="true"] {
+    height: clamp(22rem, calc(100svh - var(--dock-reserve) - 10.5rem - env(safe-area-inset-top)), 40rem);
+  }
+
+  .deck-card-active {
+    will-change: transform;
+    transform-origin: 50% 78%;
+  }
+
+  /* The original material stays intact. Static layers rasterize once instead
+     of repeatedly blurring the page behind a moving card on mobile WebKit. */
+  .deck-card-active .job-glass-sheet {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: radial-gradient(125% 58% at 5% -8%, rgb(255 255 255 / 9%), transparent 56%), linear-gradient(148deg, rgb(12 18 31 / 94%), rgb(7 12 22 / 92%) 58%, rgb(9 14 26 / 94%));
+  }
+
+  .deck-card-active .job-company-lens {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .deck-card-active:active .job-card-active-surface {
+    --card-press-scale: 1;
+  }
+
+  .deck-decision-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.15rem;
+    height: 5.5rem;
+  }
+
+  .deck-mini-control, .deck-decision-button {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    border: 1px solid rgb(255 255 255 / 13%);
+    color: #bdc5d6;
+    background: linear-gradient(145deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 8px 25px rgb(0 0 0 / 15%);
+    border-radius: 50%;
+    transition: transform 160ms ease, opacity 160ms ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .deck-mini-control { width: 2.75rem; height: 2.75rem; }
+  .deck-decision-button { width: 3.65rem; height: 3.65rem; }
+  .deck-decision-save { color: #83e4bd; border-color: rgb(104 211 162 / 32%); background-color: rgb(63 176 131 / 9%); }
+  .deck-decision-pass { color: #e7b4bf; border-color: rgb(231 180 191 / 22%); }
+  .deck-mini-control:active, .deck-decision-button:active { transform: scale(.92); }
+  .deck-mini-control:focus-visible, .deck-decision-button:focus-visible { outline: 2px solid #aaa3ff; outline-offset: 4px; }
+  .deck-mini-control:disabled, .deck-decision-button:disabled { opacity: .3; }
 
   .job-deck-stage[data-feed-status="true"] {
     --deck-status-space: 2.75rem;
@@ -1250,6 +1306,12 @@
     padding-bottom: var(--dock-reserve);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+  }
+
+  .app-viewport.direct-feed-page,
+  .app-viewport.role-workspace-page {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
   }
 
   .safe-page-top {
@@ -1555,6 +1617,15 @@
   100% {
     transform: translateX(130%);
   }
+}
+
+@media (max-height: 740px) {
+  .emergency-job-card .job-glass-sheet { min-height: 0; }
+  .emergency-job-card .job-card-risk { display: none; }
+}
+
+@media (max-height: 620px) {
+  .emergency-job-card .job-card-fit { display: none; }
 }
 
 @media (max-height: 650px) {

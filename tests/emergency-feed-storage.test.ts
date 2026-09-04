@@ -15,6 +15,7 @@ import {
   sanitizeEmergencyProfile,
   saveEmergencyProfile,
   saveEmergencyProfileWithStatus,
+  undoEmergencyDecision,
 } from "@/features/jobs/emergency-feed-storage";
 
 function memoryBrowser() {
@@ -70,6 +71,35 @@ function job(id: string): EmergencyFeedJob {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("undo direct-feed swipes", () => {
+  it("restores a saved role to the feed without leaving a ghost save", () => {
+    memoryBrowser();
+    const result = recordEmergencyDecisionWithStatus(job("undo"), "saved");
+    expect(undoEmergencyDecision("undo", result.decision.decidedAt)).toBe(true);
+    expect(emergencySavedJobs()).toEqual([]);
+    expect(readEmergencyDecisions()).toEqual([]);
+    expect(readEmergencySeenJobIds()).toEqual([]);
+  });
+  it("does not undo a newer decision on the same job", () => {
+    memoryBrowser();
+    recordEmergencyDecisionWithStatus(job("undo"), "saved");
+    expect(undoEmergencyDecision("undo", "2020-01-01T00:00:00.000Z")).toBe(false);
+    expect(emergencySavedJobs()).toHaveLength(1);
+  });
+  it("rolls back the decision when saving the undo fails", () => {
+    const { storage } = memoryBrowser();
+    const result = recordEmergencyDecisionWithStatus(job("undo"), "saved");
+    const original = storage.setItem;
+    storage.setItem = (key, value) => {
+      if (key === "jobswipe:emergency-saved:v1") throw new Error("quota");
+      original(key, value);
+    };
+    expect(undoEmergencyDecision("undo", result.decision.decidedAt)).toBe(false);
+    expect(readEmergencyDecisions()).toHaveLength(1);
+    expect(emergencySavedJobs()).toHaveLength(1);
+  });
 });
 
 describe("emergency feed profile storage", () => {

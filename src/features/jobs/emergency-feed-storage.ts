@@ -20,6 +20,11 @@ const MAX_ROLE_LENGTH = 100;
 
 export const EMERGENCY_PROFILE_CHANGED_EVENT =
   "jobswipe:emergency-profile-changed";
+export const EMERGENCY_DECISIONS_CHANGED_EVENT = "roledex:decisions-changed";
+
+function announceDecisionsChanged() {
+  try { window.dispatchEvent(new Event(EMERGENCY_DECISIONS_CHANGED_EVENT)); } catch { /* private browser */ }
+}
 
 export type EmergencyDecision = {
   decidedAt: string;
@@ -345,11 +350,35 @@ export function recordEmergencyDecisionWithStatus(
     return { decision: next, persisted: false, reason: "storage" as const };
   }
   rememberEmergencyJob(job.id);
+  announceDecisionsChanged();
   return {
     decision: next,
     persisted: decisionPersisted && shortlistPersisted,
     reason: null,
   };
+}
+
+/** Undo only the exact pending decision so a newer change or synced save is never erased. */
+export function undoEmergencyDecision(jobId: string, decidedAt: string) {
+  const decisions = readEmergencyDecisions();
+  const decision = decisions.find((item) => item.job.id === jobId);
+  if (!decision || decision.decidedAt !== decidedAt || decision.syncedAt !== null) return false;
+  const saved = readPersistedEmergencySavedJobs();
+  const seen = readEmergencySeenJobIds();
+  if (!writeEmergencyDecisions(decisions.filter((item) => item.job.id !== jobId))) return false;
+  if (!writeEmergencySavedJobs(saved.filter((job) => job.id !== jobId))) {
+    writeEmergencyDecisions(decisions);
+    return false;
+  }
+  try {
+    window.localStorage.setItem(SEEN_JOB_IDS_KEY, JSON.stringify(seen.filter((id) => id !== jobId)));
+  } catch {
+    writeEmergencyDecisions(decisions);
+    writeEmergencySavedJobs(saved);
+    return false;
+  }
+  announceDecisionsChanged();
+  return true;
 }
 
 /** Backward-compatible decision-only API for callers that do not render status. */

@@ -109,12 +109,17 @@ export function EmergencyProfilePanel() {
     profileFingerprint(DEFAULT_EMERGENCY_PROFILE),
   );
   const [savedAnnouncement, setSavedAnnouncement] = useState("");
+  const [customRole, setCustomRole] = useState("");
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const stored = readEmergencyProfile() ?? DEFAULT_EMERGENCY_PROFILE;
       setProfile(stored);
       setSavedFingerprint(profileFingerprint(stored));
+      if (window.location.hash === "#direction") {
+        const editor = document.getElementById("direction");
+        if (editor instanceof HTMLDetailsElement) editor.open = true;
+      }
     });
     return () => cancelAnimationFrame(frame);
   }, []);
@@ -192,7 +197,7 @@ export function EmergencyProfilePanel() {
         </div>
       </div>
 
-      <details className="group mt-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#090f1b]/78 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-2xl">
+      <details id="direction" className="group mt-4 scroll-mt-4 overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#090f1b]/78 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-2xl">
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-5 text-[13px] font-semibold text-[#edf0f5] outline-none hover:bg-white/[0.035] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#aaa3ff]/50 [&::-webkit-details-marker]:hidden">
           Edit what I see
           <ChevronDown
@@ -208,7 +213,7 @@ export function EmergencyProfilePanel() {
               These roles are ranked first. Keep at least one.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              {ROLE_OPTIONS.map((role) => {
+              {Array.from(new Set([...ROLE_OPTIONS, ...profile.targetRoleFamilies])).map((role) => {
                 const active = activeRoles.has(role);
                 return (
                   <ChoiceButton
@@ -230,6 +235,16 @@ export function EmergencyProfilePanel() {
                 );
               })}
             </div>
+            <form className="mt-3 flex gap-2" onSubmit={(event) => {
+              event.preventDefault();
+              const role = customRole.trim();
+              if (!role || profile.targetRoleFamilies.length >= 30) return;
+              if (!profile.targetRoleFamilies.some((current) => current.toLowerCase() === role.toLowerCase())) update({ ...profile, targetRoleFamilies: [...profile.targetRoleFamilies, role] });
+              setCustomRole("");
+            }}>
+              <label className="min-w-0 flex-1"><span className="sr-only">Custom role</span><input value={customRole} onChange={(event) => setCustomRole(event.target.value)} maxLength={100} placeholder="Add a role" className="h-12 w-full rounded-xl border border-white/15 bg-white/[0.04] px-3 text-base text-white outline-none placeholder:text-[#6f7c91] focus:border-[#aaa3ff]" /></label>
+              <button type="submit" disabled={!customRole.trim() || profile.targetRoleFamilies.length >= 30} className="min-h-12 rounded-xl border border-[#aaa3ff]/30 bg-[#8176ff]/15 px-4 text-sm font-semibold text-[#c9c3ff] disabled:opacity-40">Add</button>
+            </form>
           </fieldset>
 
           <fieldset className="border-t border-white/[0.08] pt-5">
@@ -279,6 +294,10 @@ export function EmergencyProfilePanel() {
               ))}
             </div>
           </fieldset>
+
+          <label className="block border-t border-white/[0.08] pt-5 text-[13px] font-semibold text-white">City or region
+            <input value={profile.location ?? ""} onChange={(event) => update({ ...profile, location: event.target.value || null })} maxLength={120} placeholder="Anywhere in the US" className="mt-3 h-12 w-full rounded-xl border border-white/15 bg-white/[0.04] px-3 text-base font-normal text-white outline-none placeholder:text-[#6f7c91] focus:border-[#aaa3ff]" />
+          </label>
 
           <fieldset className="border-t border-white/[0.08] pt-5">
             <legend className="text-[13px] font-semibold text-white">Work setup</legend>
