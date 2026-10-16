@@ -1,4 +1,4 @@
-export const JOB_PARSER_VERSION = "job-parser-v4" as const;
+export const JOB_PARSER_VERSION = "job-parser-v5" as const;
 
 export type Confidence = "low" | "medium" | "high";
 

@@ -42,6 +42,21 @@ describe("parseJobListing", () => {
     });
   });
 
+  it.each([
+    ["The salary range for this position is $72,000.50 - $88,000.75 per year.", 7_200_050, 8_800_075],
+    ["Salary: up to $90,000.75 per year.", null, 9_000_075],
+    ["Salary: from $72,000.50 annually.", 7_200_050, null],
+    ["Annual base salary: $72,000.50.", 7_200_050, 7_200_050],
+    ["Annual salary range: USD 72,000.50 to USD 88,000.75.", 7_200_050, 8_800_075],
+    ["Hourly rate: $22.50 to $28.75 per hour.", 2_250, 2_875],
+    ["Annual salary range: $72.5k to $88.75k.", 7_250_000, 8_875_000],
+  ])("preserves decimal amounts in salary evidence: %s", (descriptionRaw, minimumCents, maximumCents) => {
+    const parsed = parseJobListing({ title: "Analyst", company: "Synthetic fixture", descriptionRaw });
+    expect(parsed.salary).toMatchObject({ minimumCents, maximumCents, currency: "USD", derived: false });
+    expect(parsed.salary.evidence[0]?.excerpt).toBeTruthy();
+    expect(descriptionRaw).toContain(parsed.salary.evidence[0]?.excerpt);
+  });
+
   it("keeps one-sided salaries one-sided and never treats OTE or benefits as base salary", () => {
     const upTo = parseJobListing({
       title: "Solutions Consultant",

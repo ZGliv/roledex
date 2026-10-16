@@ -476,7 +476,7 @@ function extractSalary(
   };
 }
 
-const MONEY = "(?:\\$\\s*|USD\\s*)?(\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?)\\s*([kK])?";
+const MONEY = "(?:\\$\\s*|USD\\s*)?((?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?)\\s*([kK])?";
 
 function parseSalaryAmounts(
   line: string,
