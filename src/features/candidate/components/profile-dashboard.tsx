@@ -106,6 +106,7 @@ const compactUsdFormatter = new Intl.NumberFormat("en-US", {
 });
 
 const updatedAtFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
   day: "numeric",
   month: "short",
 });
