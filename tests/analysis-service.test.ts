@@ -120,6 +120,36 @@ afterAll(() => {
 });
 
 describe("manual Job Gauntlet persistence", () => {
+  it("refreshes an expired saved role after profile changes without reusing stale analysis", async () => {
+    const { candidateProfiles, jobListings, visitorJobStates, fitScoreRuns } = await import("@/db/schema");
+    const { getJobCardForVisitor } = await import("@/features/jobs/queries");
+    const prompt = await generateManualJobGauntletPrompt(jobId);
+    const [profile] = await db.select().from(candidateProfiles).limit(1);
+    const [listing] = await db.select().from(jobListings).where(eq(jobListings.id, jobId));
+    await db.insert(visitorJobStates).values({ visitorId: profile.visitorId, jobListingId: jobId, currentDecision: "applied" });
+    await db.update(jobListings).set({ lifecycleStatus: "expired" }).where(eq(jobListings.id, jobId));
+    await db.update(candidateProfiles).set({ revision: profile.revision + 1, fingerprint: "updated-resume-evidence" }).where(eq(candidateProfiles.id, profile.id));
+    try {
+      const card = await getJobCardForVisitor(profile.visitorId, jobId);
+      expect(card?.title).toBe("Associate AI Implementation Consultant");
+      const input = await buildCurrentJobGauntletInput(jobId);
+      expect(input.candidate.revision).toBe(profile.revision + 1);
+      expect(input.candidateFingerprint).not.toBe(prompt.candidateFingerprint);
+      expect(await getLatestPendingJobGauntlet(jobId)).toBeNull();
+      expect(await getLatestSuccessfulJobGauntlet(jobId)).toBeNull();
+      const before = (await db.select().from(fitScoreRuns)).length;
+      await buildCurrentJobGauntletInput(jobId);
+      expect((await db.select().from(fitScoreRuns)).length).toBe(before);
+      const [state] = await db.select().from(visitorJobStates).where(eq(visitorJobStates.jobListingId, jobId));
+      expect(state.currentDecision).toBe("applied");
+      expect((await getJobGauntletHistory(jobId))[0]?.analysisRunId).toBe(prompt.analysisRunId);
+    } finally {
+      await db.update(candidateProfiles).set({ revision: profile.revision, fingerprint: profile.fingerprint }).where(eq(candidateProfiles.id, profile.id));
+      await db.update(jobListings).set({ lifecycleStatus: listing.lifecycleStatus }).where(eq(jobListings.id, jobId));
+      await db.delete(visitorJobStates).where(eq(visitorJobStates.jobListingId, jobId));
+    }
+  });
+
   it("builds a stable frozen input from the current job and candidate evidence", async () => {
     const first = await buildCurrentJobGauntletInput(jobId);
     const second = await buildCurrentJobGauntletInput(jobId);

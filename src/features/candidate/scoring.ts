@@ -311,6 +311,26 @@ export async function repairCurrentFitScoresForInteractiveRequest(
   );
 }
 
+/** A saved or expired role may be outside feed repair; refresh just the opened role. */
+export async function ensureCurrentFitScoreForJob(
+  profile: CandidateProfile,
+  jobId: string,
+): Promise<void> {
+  await ensureDatabaseReady();
+  const revisions = await db
+    .select({ revision: jobRevisions })
+    .from(jobListings)
+    .innerJoin(jobRevisions, eq(jobListings.currentRevisionId, jobRevisions.id))
+    .where(and(eq(jobListings.id, jobId), missingCurrentScore(profile)))
+    .limit(1);
+  if (revisions.length === 0) return;
+  await scoreMissingRevisionBatch(
+    profile,
+    revisions,
+    await loadCandidateScoringEvidence(profile),
+  );
+}
+
 /**
  * Lazily repairs current scores in bounded 100-row reads and 20-row inserts.
  * Missing rows are selected directly, so each batch advances beyond already

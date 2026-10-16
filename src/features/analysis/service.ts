@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, ensureDatabaseReady } from "@/db/client";
@@ -26,6 +26,8 @@ import {
   type JobGauntletAnalysis,
 } from "@/features/analysis/schema";
 import { getActiveCandidateContext } from "@/features/candidate/queries";
+import { ensureCurrentFitScoreForJob } from "@/features/candidate/scoring";
+import { FIT_SCORING_VERSION } from "@/features/fit/scoring-config";
 import { hashValue } from "@/lib/hashing";
 
 const JobIdSchema = z.string().uuid();
@@ -218,7 +220,8 @@ function deterministicSnapshot(fit: typeof fitScoreRuns.$inferSelect) {
 async function loadCurrentAnalysisContext(rawJobId: string): Promise<CurrentAnalysisContext> {
   const jobId = JobIdSchema.parse(rawJobId);
   await ensureDatabaseReady();
-  const { profile, projects } = await getActiveCandidateContext();
+  const { profile, projects } = await getActiveCandidateContext(false);
+  await ensureCurrentFitScoreForJob(profile, jobId);
   const [row] = await db
     .select({ listing: jobListings, revision: jobRevisions, fit: fitScoreRuns })
     .from(jobListings)
@@ -228,6 +231,9 @@ async function loadCurrentAnalysisContext(rawJobId: string): Promise<CurrentAnal
       and(
         eq(fitScoreRuns.jobRevisionId, jobRevisions.id),
         eq(fitScoreRuns.candidateProfileId, profile.id),
+        eq(fitScoreRuns.scoringVersion, FIT_SCORING_VERSION),
+        sql`cast(json_extract(${fitScoreRuns.candidateSnapshot}, '$.revision') as integer) = ${profile.revision}`,
+        sql`coalesce(json_extract(${fitScoreRuns.candidateSnapshot}, '$.fingerprint'), '') = ${profile.fingerprint ?? ""}`,
       ),
     )
     .where(eq(jobListings.id, jobId))

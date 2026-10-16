@@ -24,6 +24,7 @@ import {
   getActiveCandidateProfileRecordForVisitor,
 } from "@/features/candidate/queries";
 import { FIT_SCORING_VERSION } from "@/features/fit/scoring-config";
+import { ensureCurrentFitScoreForJob } from "@/features/candidate/scoring";
 import type { DeterministicFitResult, FitVerdict } from "@/features/fit/types";
 import type { JobCardViewModel } from "@/features/jobs/components/job-card";
 import { readinessLabel } from "@/features/jobs/service";
@@ -1500,6 +1501,7 @@ export async function getJobCardForVisitor(visitorId: string, jobId: string) {
   await ensureDatabaseReady();
   const context = await getActiveCandidateContextForVisitor(visitorId, false);
   const { profile } = context;
+  await ensureCurrentFitScoreForJob(profile, jobId);
   const currentDecision = sql<JobDecision>`coalesce(${visitorJobStates.currentDecision}, 'unseen')`;
   const [row] = await db
     .select({
