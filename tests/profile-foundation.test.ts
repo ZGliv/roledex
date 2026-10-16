@@ -66,6 +66,23 @@ async function currentProfile(visitorId: string) {
 }
 
 describe.sequential("profile persistence foundation", () => {
+  it("saves role directions loaded from the database view through the strict mutation contract", async () => {
+    const { getCandidateProfileViewForVisitor } = await import("@/features/candidate/queries");
+    const { CandidateRoleTargetsReplaceSchema } = await import("@/features/candidate/input");
+    const { roleTargetInput } = await import("@/features/candidate/role-target-input");
+    const { replaceCandidateRoleTargetsForVisitor } = await import("@/features/candidate/search-contract-service");
+    const view = await getCandidateProfileViewForVisitor(visitorB, false);
+    const input = CandidateRoleTargetsReplaceSchema.parse({
+      expectedRevision: view.revision,
+      targets: view.roleTargets.map((target, index) => roleTargetInput(target, index + 1)),
+    });
+    await replaceCandidateRoleTargetsForVisitor(visitorB, input);
+    const reloaded = await getCandidateProfileViewForVisitor(visitorB, false);
+    expect(reloaded.roleTargets.map((target) => target.label)).toEqual(
+      view.roleTargets.map((target) => target.label),
+    );
+  });
+
   it("rejects impossible search and timeline values", async () => {
     const {
       CandidateEducationCreateSchema,

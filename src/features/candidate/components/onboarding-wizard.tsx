@@ -37,6 +37,10 @@ import {
   ONBOARDING_CALIBRATION_PREFETCH,
 } from "@/features/candidate/onboarding-calibration";
 import { ROLE_DIRECTION_PRESETS } from "@/features/candidate/search-contract-defaults";
+import { roleTargetInput } from "@/features/candidate/role-target-input";
+import { deviceSearchRoleTargets } from "@/features/candidate/device-search-recovery";
+import { readEmergencyProfile } from "@/features/jobs/emergency-feed-storage";
+import type { EmergencyFeedProfile } from "@/features/jobs/emergency-feed";
 import type { JobDecisionReason } from "@/db/schema";
 import {
   annotateJobDecisionReasonsAction,
@@ -685,6 +689,11 @@ export function OnboardingWizard({
   const [revision, setRevision] = useState(profile.revision);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [deviceSearch, setDeviceSearch] = useState<EmergencyFeedProfile | null>(null);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setDeviceSearch(readEmergencyProfile()));
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const [calibrationJobs, setCalibrationJobs] = useState<
     EnrichedJobCardViewModel[]
   >([]);
@@ -767,6 +776,19 @@ export function OnboardingWizard({
     listText(profile.excludedIndustries),
   );
   const calibrationGoal = onboardingCalibrationGoal(calibrationJobs.length);
+  function recoverDeviceSearch() {
+    if (!deviceSearch) return;
+    const targets = deviceSearchRoleTargets(deviceSearch);
+    if (targets.length) setRoleTargets(targets);
+    setLocation(deviceSearch.location ?? "");
+    setMinimumSalary(dollars(deviceSearch.preferredSalaryMinimumCents));
+    setTargetSalary(dollars(Math.max(profile.preferredSalaryTargetCents, deviceSearch.preferredSalaryMinimumCents)));
+    setYearsExperience(String(Math.floor(deviceSearch.yearsExperience ?? 0)));
+    setWorkModes([...deviceSearch.preferredWorkModes]);
+    setSeniority([...deviceSearch.desiredSeniorityLevels]);
+    setMessage("Device-saved preferences loaded for review. Continue through setup to save them to this workspace.");
+    setStep(1);
+  }
   const currentCalibrationJob =
     calibrationDecisions < calibrationGoal
       ? (calibrationJobs[calibrationIndex] ?? null)
@@ -821,12 +843,10 @@ export function OnboardingWizard({
         return;
       }
       let nextRevision = result.revision ?? revision;
+      setRevision(nextRevision);
       const roleResult = await replaceCandidateRoleTargetsAction({
         expectedRevision: nextRevision,
-        targets: roleTargets.map((target, index) => ({
-          ...target,
-          priorityRank: index + 1,
-        })),
+        targets: roleTargets.map((target, index) => roleTargetInput(target, index + 1)),
       });
       if (!roleResult.ok) {
         setMessage(
@@ -1064,6 +1084,14 @@ export function OnboardingWizard({
                   );
                 })}
               </div>
+              {deviceSearch ? (
+                <section className="mt-4 rounded-[1rem] border border-[#8176ff]/30 bg-[#8176ff]/10 p-4" aria-label="Recover device-saved search">
+                  <p className="text-[13px] font-semibold text-[#e9edf4]">Your device-saved search is still here</p>
+                  <p className="mt-2 text-[12px] leading-5 text-[#9ca7b9]">{deviceSearch.targetRoleFamilies.join(" · ")}</p>
+                  <p className="mt-2 text-[12px] leading-5 text-[#9ca7b9]">Review its roles, location, pay floor and work preferences before replacing this workspace’s settings. The device copy stays intact.</p>
+                  <button type="button" onClick={recoverDeviceSearch} className="mt-3 min-h-11 rounded-full bg-white px-4 text-[12px] font-semibold text-[#111827] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">Review device-saved search</button>
+                </section>
+              ) : null}
               <details className="group mt-4 rounded-[1rem] border border-white/10 bg-white/[0.025]">
                 <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-[11px] font-semibold text-[#cbd2de] [&::-webkit-details-marker]:hidden">
                   Import a résumé first (optional)
@@ -1099,6 +1127,12 @@ export function OnboardingWizard({
                 <fieldset>
                   <legend className="text-[11px] font-semibold text-[#dce2ec]">Role directions</legend>
                   <p className="mt-1 text-[10px] leading-4 text-[#6f7c91]">Choose two or three to start. Ready now fills most of your feed; Stretch adds credible adjacent moves.</p>
+                  {roleTargets.filter((target) => !ROLE_DIRECTION_PRESETS.some((preset) => preset.canonicalFamily === target.canonicalFamily)).map((target) => (
+                    <div key={target.canonicalFamily} className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-white/10 px-3 text-[12px] text-[#c4ccda]">
+                      <span>{target.label}</span>
+                      <button type="button" disabled={roleTargets.length <= 1} aria-label={`Remove ${target.label}`} className="min-h-11 px-2 disabled:opacity-30" onClick={() => setRoleTargets((current) => current.filter((item) => item.canonicalFamily !== target.canonicalFamily))}>Remove</button>
+                    </div>
+                  ))}
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     {ROLE_DIRECTION_PRESETS.map((preset) => {
                       const selected = roleTargets.some(
@@ -1109,6 +1143,7 @@ export function OnboardingWizard({
                           key={preset.canonicalFamily}
                           type="button"
                           aria-pressed={selected}
+                          disabled={!selected && roleTargets.length >= 12}
                           onClick={() => {
                             setMessage(null);
                             setRoleTargets((current) => {

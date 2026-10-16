@@ -160,6 +160,45 @@ describe("profile foundation migration", () => {
     }
   });
 
+  it("preserves the owner's edited search preferences when upgrading the deployed schema", async () => {
+    const directory = temporaryPath("roledex-owner-migration-");
+    const client = databaseClient(directory);
+    try {
+      await migrate(drizzle(client), { migrationsFolder: migrationsThrough(7) });
+      const owner = "00000000-0000-4000-8000-000000000001";
+      await client.execute({
+        sql: "INSERT OR IGNORE INTO visitors (id, kind) VALUES (?, 'owner')",
+        args: [owner],
+      });
+      await client.execute({
+        sql: `INSERT INTO candidate_profiles (
+          id, visitor_id, current_role, current_salary_cents,
+          preferred_salary_minimum_cents, preferred_salary_target_cents,
+          target_role_families, desired_seniority_levels, excluded_titles
+        ) VALUES ('candidate-default', ?, 'Research Analyst', 5000000, 7000000,
+          8000000, '["Research operations","Technical writing"]', '[]', '[]')`,
+        args: [owner],
+      });
+      const before = await client.execute(
+        "SELECT target_role_families, desired_seniority_levels, excluded_titles FROM candidate_profiles WHERE id = 'candidate-default'",
+      );
+      await migrate(drizzle(client), { migrationsFolder: migrationSource });
+      const after = await client.execute(
+        "SELECT target_role_families, desired_seniority_levels, excluded_titles FROM candidate_profiles WHERE id = 'candidate-default'",
+      );
+      expect(after.rows).toEqual(before.rows);
+      const targets = await client.execute(
+        "SELECT label FROM candidate_role_targets WHERE candidate_profile_id = 'candidate-default' ORDER BY priority_rank",
+      );
+      expect(targets.rows.map((row) => row.label)).toEqual([
+        "Research operations",
+        "Technical writing",
+      ]);
+    } finally {
+      client.close();
+    }
+  });
+
   it("upgrades a seeded 0005 profile, safely backfills modes, and enforces checks", async () => {
     const directory = temporaryPath("jobswipe-profile-legacy-");
     const client = databaseClient(directory);

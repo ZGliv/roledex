@@ -1,8 +1,5 @@
 import "server-only";
 
-import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
-
 const MAX_RESUME_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_RESUME_TEXT_CHARACTERS = 100_000;
 
@@ -60,6 +57,7 @@ export async function extractResumeFileText(file: File) {
     if (!hasPdfMagic(bytes)) {
       throw new ResumeFileError("That file does not appear to be a valid PDF.");
     }
+    const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: bytes });
     try {
       const result = await parser.getText();
@@ -73,6 +71,7 @@ export async function extractResumeFileText(file: File) {
     if (!hasZipMagic(bytes)) {
       throw new ResumeFileError("That file does not appear to be a valid Word document.");
     }
+    const { default: mammoth } = await import("mammoth");
     const result = await mammoth.extractRawText({ buffer });
     return cleanExtractedText(result.value);
   }

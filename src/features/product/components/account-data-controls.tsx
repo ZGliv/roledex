@@ -44,10 +44,12 @@ function SettingToggle({
   checked,
   label,
   description,
+  disabled,
   onChange,
 }: {
   checked: boolean;
   description: string;
+  disabled: boolean;
   label: string;
   onChange: (checked: boolean) => void;
 }) {
@@ -60,6 +62,7 @@ function SettingToggle({
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
         className="size-5 accent-[#8176ff]"
       />
@@ -127,20 +130,26 @@ export function AccountDataControls({
         reminderNotificationsEnabled: nextSettings.reminderNotificationsEnabled,
       });
       if (!result.ok) throw new Error(result.message);
+      setSettings(nextSettings);
       setMessage(result.message);
     });
   }
 
   async function enableReminders(enabled: boolean) {
-    if (enabled && "Notification" in window && Notification.permission === "default") {
-      const permission = await Notification.requestPermission();
+    if (enabled) {
+      if (!("Notification" in window)) {
+        setError("This browser does not support notifications. Your follow-ups are still available in Saved.");
+        return;
+      }
+      const permission = Notification.permission === "default"
+        ? await Notification.requestPermission().catch(() => "denied")
+        : Notification.permission;
       if (permission !== "granted") {
         setError("Notifications remain off because permission was not granted.");
         return;
       }
     }
     const next = { ...settings, reminderNotificationsEnabled: enabled };
-    setSettings(next);
     saveSettings(next);
   }
 
@@ -197,24 +206,28 @@ export function AccountDataControls({
             <code className="flex-1 text-center text-sm font-semibold tracking-[0.14em] text-[#d9d5ff]">{pairingCode}</code>
             <button
               type="button"
-              onClick={() => void navigator.clipboard.writeText(pairingCode)}
+              onClick={() => run(async () => {
+                if (!navigator.clipboard) throw new Error("Copy is unavailable here. Select the code and copy it manually.");
+                await navigator.clipboard.writeText(pairingCode);
+                setMessage("Pairing code copied.");
+              })}
               className="grid size-11 place-items-center rounded-lg text-[#aaa3ff] hover:bg-white/[0.07]"
               aria-label="Copy pairing code"
             >
               <Copy className="size-4" aria-hidden="true" />
             </button>
           </div>
-        ) : (
+        ) : null}
           <Button type="button" variant="outline" className="mt-3 h-11 w-full" disabled={pending} onClick={createPairingCode}>
             {pending ? <LoaderCircle className="animate-spin" /> : <Link2 />}
-            Create pairing code
+            {pairingCode ? "Create a new pairing code" : "Create pairing code"}
           </Button>
-        )}
         <div className="mt-3 flex gap-2">
           <input
             value={redeemCode}
             onChange={(event) => setRedeemCode(event.target.value)}
             placeholder="Enter code from another device"
+            aria-label="Pairing code from another device"
             autoCapitalize="characters"
             className={controlClass}
           />
@@ -230,18 +243,19 @@ export function AccountDataControls({
           <h3 className="text-[14px] font-semibold text-[#e8ecf3]">Reminders</h3>
         </div>
         <SettingToggle
+          disabled={pending}
           checked={settings.reminderNotificationsEnabled}
           label="Application reminders"
           description="Notify you about due follow-ups while RoleDex is open."
           onChange={(checked) => void enableReminders(checked)}
         />
         <SettingToggle
+          disabled={pending}
           checked={settings.dailyDigestEnabled}
           label="Daily match digest"
           description="Ready for native push or email delivery when a provider is connected."
           onChange={(checked) => {
             const next = { ...settings, dailyDigestEnabled: checked };
-            setSettings(next);
             saveSettings(next);
           }}
         />

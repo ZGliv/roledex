@@ -81,48 +81,4 @@ WHERE
 	json_valid(`candidate_profiles`.`target_role_families`)
 	AND json_type(`candidate_profiles`.`target_role_families`) = 'array'
 	AND trim(cast(`json_each`.`value` as text)) <> ''
-	AND cast(`json_each`.`key` as integer) < 12;--> statement-breakpoint
-DELETE FROM `candidate_role_targets`
-WHERE `candidate_profile_id` = 'candidate-default';--> statement-breakpoint
-INSERT INTO `candidate_role_targets` (
-	`id`, `candidate_profile_id`, `canonical_family`, `label`, `aliases`,
-	`priority_rank`, `readiness`, `allowed_seniority_levels`,
-	`minimum_required_experience_years`, `maximum_required_experience_years`,
-	`exclusions`
-)
-SELECT
-	'owner-role-' || cast(`role`.`rank` as text),
-	'candidate-default',
-	`role`.`family`,
-	`role`.`label`,
-	`role`.`aliases`,
-	`role`.`rank`,
-	`role`.`readiness`,
-	'["entry","mid"]',
-	0,
-	3,
-	'["Senior","Staff","Principal","Manager","Director","Quota-carrying","Requires 4+ years"]'
-FROM (
-	SELECT 1 AS `rank`, 'implementation' AS `family`, 'Implementation specialist / analyst' AS `label`, '["Implementation Specialist","Implementation Analyst"]' AS `aliases`, 'ready_now' AS `readiness`
-	UNION ALL SELECT 2, 'health_tech_implementation', 'Health-tech implementation', '["Healthcare Implementation Specialist","Clinical Systems Implementation"]', 'ready_now'
-	UNION ALL SELECT 3, 'ai_enablement_operations', 'AI enablement / operations', '["AI Operations Analyst","AI Enablement Specialist"]', 'ready_now'
-	UNION ALL SELECT 4, 'product_operations', 'Product operations', '["Product Operations Analyst","Product Ops Coordinator"]', 'ready_now'
-	UNION ALL SELECT 5, 'technical_customer_success', 'Technical customer success', '["Technical Customer Success","Technical Success Specialist"]', 'ready_now'
-	UNION ALL SELECT 6, 'business_systems_automation', 'Business systems / automation analyst', '["Business Systems Analyst","Automation Analyst"]', 'ready_now'
-	UNION ALL SELECT 7, 'associate_solutions', 'Associate solutions consultant / engineer', '["Associate Solutions Consultant","Junior Solutions Engineer"]', 'stretch'
-	UNION ALL SELECT 8, 'associate_product', 'Associate product roles', '["Associate Product Manager","Product Analyst"]', 'stretch'
-	UNION ALL SELECT 9, 'technical_product_specialist', 'Technical product specialist', '["Technical Product Specialist","Product Support Specialist"]', 'stretch'
-) AS `role`
-WHERE EXISTS (
-	SELECT 1 FROM `candidate_profiles`
-	WHERE `candidate_profiles`.`id` = 'candidate-default'
-		AND `candidate_profiles`.`visitor_id` = '00000000-0000-4000-8000-000000000001'
-);--> statement-breakpoint
-UPDATE `candidate_profiles`
-SET
-	`target_role_families` = '["Implementation specialist / analyst","Health-tech implementation","AI enablement / operations","Product operations","Technical customer success","Business systems / automation analyst","Associate solutions consultant / engineer","Associate product roles","Technical product specialist"]',
-	`desired_seniority_levels` = CASE WHEN json_array_length(`desired_seniority_levels`) = 0 THEN '["entry","mid"]' ELSE `desired_seniority_levels` END,
-	`excluded_titles` = CASE WHEN json_array_length(`excluded_titles`) = 0 THEN '["Senior","Staff","Principal","Manager","Director","Software Engineer","Machine Learning Engineer","Help Desk","Desktop Support","Account Executive"]' ELSE `excluded_titles` END
-WHERE
-	`id` = 'candidate-default'
-	AND `visitor_id` = '00000000-0000-4000-8000-000000000001';
+	AND cast(`json_each`.`key` as integer) < 12;

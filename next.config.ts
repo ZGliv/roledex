@@ -7,6 +7,8 @@ const allowedDevOrigins = process.env.JOBSWIPE_DEV_ORIGINS
 
 const nextConfig: NextConfig = {
   allowedDevOrigins,
+  // PDF.js needs its native Node module/worker resolution, not the action bundle.
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
   experimental: {
     serverActions: {
       bodySizeLimit: "6mb",

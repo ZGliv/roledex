@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import {
   extractResumeFileText,
@@ -6,6 +7,13 @@ import {
 } from "@/features/candidate/resume-file-extractor";
 
 describe("resume file extraction", () => {
+  it("extracts a real PDF through the Node parser and worker", async () => {
+    const file = new File([readFileSync("tests/fixtures/pilot-resume.pdf")], "pilot-resume.pdf", { type: "application/pdf" });
+    const text = await extractResumeFileText(file);
+    expect(text).toContain("Implementation Analyst");
+    expect(text).toContain("Information Systems");
+  });
+
   it("accepts plain text resumes and normalizes nulls and spacing", async () => {
     const text = [
       "Zack Example",

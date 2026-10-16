@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { replaceCandidateRoleTargetsAction } from "@/features/candidate/actions";
 import { ROLE_DIRECTION_PRESETS } from "@/features/candidate/search-contract-defaults";
+import { roleTargetInput } from "@/features/candidate/role-target-input";
 import { cn } from "@/lib/utils";
 
 type Seniority =
@@ -128,10 +129,7 @@ export function RoleTargetEditor({
     startTransition(async () => {
       const result = await replaceCandidateRoleTargetsAction({
         expectedRevision: revision,
-        targets: targets.map((target, index) => ({
-          ...target,
-          priorityRank: index + 1,
-        })),
+        targets: targets.map((target, index) => roleTargetInput(target, index + 1)),
       });
       setMessage(
         result.ok
